@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Test Page</title>
+    <style>
+        body { margin: 20px; font-family: Arial; }
+        #test { padding: 20px; background: #f0f0f0; border-radius: 10px; }
+        .success { color: green; font-weight: bold; }
+        .error { color: red; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <h1>Taiwan Trip - Library Test</h1>
+    <div id="test"></div>
+
+    <!-- Leaflet -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <!-- Three.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+    <script>
+        const testDiv = document.getElementById('test');
+        let results = [];
+
+        // Test Leaflet
+        if (typeof L !== 'undefined') {
+            results.push('<p class="success">✅ Leaflet loaded successfully</p>');
+        } else {
+            results.push('<p class="error">❌ Leaflet failed to load</p>');
+        }
+
+        // Test Three.js
+        if (typeof THREE !== 'undefined') {
+            results.push('<p class="success">✅ Three.js loaded successfully</p>');
+        } else {
+            results.push('<p class="error">❌ Three.js failed to load</p>');
+        }
+
+        testDiv.innerHTML = results.join('');
+
+        // Try to create a simple map
+        setTimeout(() => {
+            const mapDiv = document.createElement('div');
+            mapDiv.id = 'testMap';
+            mapDiv.style.height = '300px';
+            mapDiv.style.width = '100%';
+            mapDiv.style.marginTop = '20px';
+            document.body.appendChild(mapDiv);
+
+            try {
+                const map = L.map('testMap').setView([23.4694, 120.3394], 10);
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+                testDiv.innerHTML += '<p class="success">✅ Map created successfully</p>';
+            } catch (e) {
+                testDiv.innerHTML += '<p class="error">❌ Map creation failed: ' + e.message + '</p>';
+            }
+
+            // Try to create 3D scene
+            const canvasDiv = document.createElement('div');
+            canvasDiv.id = 'testCanvas';
+            canvasDiv.style.height = '300px';
+            canvasDiv.style.width = '100%';
+            canvasDiv.style.marginTop = '20px';
+            canvasDiv.style.background = '#1e3a8a';
+            document.body.appendChild(canvasDiv);
+
+            try {
+                const scene = new THREE.Scene();
+                const camera = new THREE.PerspectiveCamera(75, 1, 0.1, 1000);
+                const renderer = new THREE.WebGLRenderer();
+                renderer.setSize(500, 300);
+                canvasDiv.appendChild(renderer.domElement);
+
+                const geometry = new THREE.SphereGeometry(1, 32, 32);
+                const material = new THREE.MeshBasicMaterial({ color: 0x10b981 });
+                const sphere = new THREE.Mesh(geometry, material);
+                scene.add(sphere);
+
+                camera.position.z = 5;
+                renderer.render(scene, camera);
+
+                testDiv.innerHTML += '<p class="success">✅ 3D scene created successfully</p>';
+            } catch (e) {
+                testDiv.innerHTML += '<p class="error">❌ 3D scene creation failed: ' + e.message + '</p>';
+            }
+        }, 1000);
+    </script>
+</body>
+</html>

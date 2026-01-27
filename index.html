@@ -546,7 +546,7 @@
                 const route = ROUTES[currentRoute];
                 const center = route.locations[0];
 
-                map = L.map('map').setView([center.lat, center.lng], 10);
+                map = L.map('map').setView([center.lat, center.lng], 9);
                 console.log('✓ Map created');
 
                 // Add tile layer
@@ -651,8 +651,13 @@
                 opacity: 0.7
             }).addTo(map);
 
-            // Fit bounds
-            map.fitBounds(L.latLngBounds(latlngs), { padding: [50, 50] });
+            // Fit bounds - adjust padding based on screen size
+            const isMobile = window.innerWidth < 768;
+            const padding = isMobile ? [30, 30] : [80, 80];
+            map.fitBounds(L.latLngBounds(latlngs), {
+                padding: padding,
+                maxZoom: 12
+            });
 
             // Update location cards
             updateLocationCards(route);

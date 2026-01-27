@@ -7,6 +7,8 @@
 
     <!-- Leaflet CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <!-- Leaflet Control Geocoder CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-control-geocoder@2.4.0/dist/Control.Geocoder.css" />
 
     <style>
         * {
@@ -87,6 +89,131 @@
             min-height: 400px;
         }
 
+        .search-container {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+            margin-bottom: 20px;
+        }
+
+        .search-box {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        #searchInput {
+            flex: 1;
+            padding: 12px;
+            font-size: 16px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            outline: none;
+        }
+
+        #searchInput:focus {
+            border-color: #667eea;
+        }
+
+        .search-btn {
+            padding: 12px 24px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .search-btn:hover {
+            background: #5568d3;
+        }
+
+        .search-results {
+            max-height: 200px;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            display: none;
+        }
+
+        .search-results.active {
+            display: block;
+        }
+
+        .search-result-item {
+            padding: 12px;
+            cursor: pointer;
+            border-bottom: 1px solid #eee;
+            transition: background 0.2s;
+        }
+
+        .search-result-item:hover {
+            background: #f5f5f5;
+        }
+
+        .search-result-item:last-child {
+            border-bottom: none;
+        }
+
+        .distance-info {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+            margin-bottom: 20px;
+        }
+
+        .distance-info h3 {
+            margin-bottom: 15px;
+            color: #333;
+        }
+
+        .distance-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .distance-table th,
+        .distance-table td {
+            padding: 10px;
+            text-align: left;
+            border-bottom: 1px solid #eee;
+        }
+
+        .distance-table th {
+            background: #f5f5f5;
+            font-weight: bold;
+            color: #333;
+        }
+
+        .distance-total {
+            font-weight: bold;
+            background: #f0f9ff;
+            color: #3b82f6;
+        }
+
+        .custom-location {
+            background: #fef3c7;
+            border-left: 4px solid #f59e0b;
+        }
+
+        .remove-btn {
+            padding: 4px 12px;
+            background: #ef4444;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+
+        .remove-btn:hover {
+            background: #dc2626;
+        }
+
         @media (max-width: 768px) {
             h1 {
                 font-size: 1.8rem;
@@ -99,6 +226,19 @@
             .route-btn {
                 padding: 12px 20px;
                 font-size: 16px;
+            }
+
+            .search-box {
+                flex-direction: column;
+            }
+
+            .distance-table {
+                font-size: 14px;
+            }
+
+            .distance-table th,
+            .distance-table td {
+                padding: 8px;
             }
         }
 
@@ -176,9 +316,33 @@
 
         <div id="status" class="loading">載入中...</div>
 
+        <div class="search-container" id="searchContainer" style="display: none;">
+            <h2 style="margin-bottom: 15px;">🔍 搜尋並新增景點</h2>
+            <div class="search-box">
+                <input type="text" id="searchInput" placeholder="輸入景點名稱或地址（例如：阿里山、台南孔廟）">
+                <button class="search-btn" onclick="searchLocation()">搜尋</button>
+            </div>
+            <div id="searchResults" class="search-results"></div>
+        </div>
+
         <div class="map-container" id="mapContainer" style="display: none;">
             <h2 style="margin-bottom: 15px;">📍 互動式地圖</h2>
             <div id="map"></div>
+        </div>
+
+        <div class="distance-info" id="distanceInfo" style="display: none;">
+            <h3>🚗 路程資訊</h3>
+            <table class="distance-table">
+                <thead>
+                    <tr>
+                        <th>起點</th>
+                        <th>終點</th>
+                        <th>距離</th>
+                        <th>預估時間</th>
+                    </tr>
+                </thead>
+                <tbody id="distanceTableBody"></tbody>
+            </table>
         </div>
 
         <div id="locationsList" class="info-cards"></div>
@@ -186,6 +350,8 @@
 
     <!-- Leaflet JS -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <!-- Leaflet Control Geocoder JS -->
+    <script src="https://unpkg.com/leaflet-control-geocoder@2.4.0/dist/Control.Geocoder.js"></script>
 
     <script>
         console.log('=== Script Started ===');
@@ -220,6 +386,150 @@
         let map = null;
         let markers = [];
         let polyline = null;
+        let customLocations = [];
+
+        // Calculate distance using Haversine formula
+        function calculateDistance(lat1, lng1, lat2, lng2) {
+            const R = 6371; // Earth radius in km
+            const dLat = (lat2 - lat1) * Math.PI / 180;
+            const dLng = (lng2 - lng1) * Math.PI / 180;
+            const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                      Math.sin(dLng/2) * Math.sin(dLng/2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+            return R * c;
+        }
+
+        // Estimate driving time (assuming average speed 50 km/h)
+        function estimateTime(distance) {
+            const hours = distance / 50;
+            const minutes = Math.round(hours * 60);
+            if (minutes < 60) {
+                return minutes + ' 分鐘';
+            } else {
+                const h = Math.floor(minutes / 60);
+                const m = minutes % 60;
+                return h + ' 小時 ' + (m > 0 ? m + ' 分鐘' : '');
+            }
+        }
+
+        // Update distance information
+        function updateDistanceInfo(route) {
+            const locations = [...route.locations, ...customLocations];
+            if (locations.length < 2) {
+                document.getElementById('distanceInfo').style.display = 'none';
+                return;
+            }
+
+            let html = '';
+            let totalDistance = 0;
+            let totalMinutes = 0;
+
+            for (let i = 0; i < locations.length - 1; i++) {
+                const start = locations[i];
+                const end = locations[i + 1];
+                const distance = calculateDistance(start.lat, start.lng, end.lat, end.lng);
+                const minutes = Math.round(distance / 50 * 60);
+
+                totalDistance += distance;
+                totalMinutes += minutes;
+
+                html += `
+                    <tr>
+                        <td>${start.icon || '📍'} ${start.name}</td>
+                        <td>${end.icon || '📍'} ${end.name}</td>
+                        <td>${distance.toFixed(1)} 公里</td>
+                        <td>${estimateTime(distance)}</td>
+                    </tr>
+                `;
+            }
+
+            html += `
+                <tr class="distance-total">
+                    <td colspan="2">總計</td>
+                    <td>${totalDistance.toFixed(1)} 公里</td>
+                    <td>${estimateTime(totalDistance)}</td>
+                </tr>
+            `;
+
+            document.getElementById('distanceTableBody').innerHTML = html;
+            document.getElementById('distanceInfo').style.display = 'block';
+        }
+
+        // Search location using Nominatim
+        async function searchLocation() {
+            const query = document.getElementById('searchInput').value.trim();
+            if (!query) {
+                alert('請輸入搜尋關鍵字');
+                return;
+            }
+
+            const resultsDiv = document.getElementById('searchResults');
+            resultsDiv.innerHTML = '<div style="padding: 12px;">搜尋中...</div>';
+            resultsDiv.classList.add('active');
+
+            try {
+                const response = await fetch(
+                    `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query + ' 台灣')}&limit=5`
+                );
+                const results = await response.json();
+
+                if (results.length === 0) {
+                    resultsDiv.innerHTML = '<div style="padding: 12px; color: #999;">找不到結果</div>';
+                    return;
+                }
+
+                let html = '';
+                results.forEach((result, index) => {
+                    html += `
+                        <div class="search-result-item" onclick="addCustomLocation(${result.lat}, ${result.lon}, '${result.display_name.replace(/'/g, "\\'")}')">
+                            <strong>📍 ${result.display_name.split(',')[0]}</strong>
+                            <div style="font-size: 12px; color: #666; margin-top: 4px;">
+                                ${result.display_name}
+                            </div>
+                        </div>
+                    `;
+                });
+
+                resultsDiv.innerHTML = html;
+            } catch (error) {
+                console.error('Search error:', error);
+                resultsDiv.innerHTML = '<div style="padding: 12px; color: red;">搜尋失敗，請稍後再試</div>';
+            }
+        }
+
+        // Add custom location to route
+        function addCustomLocation(lat, lng, name) {
+            const shortName = name.split(',')[0];
+            const newLocation = {
+                name: shortName,
+                desc: name,
+                lat: parseFloat(lat),
+                lng: parseFloat(lng),
+                icon: '⭐',
+                time: '自訂',
+                custom: true
+            };
+
+            customLocations.push(newLocation);
+
+            // Hide search results
+            document.getElementById('searchResults').classList.remove('active');
+            document.getElementById('searchInput').value = '';
+
+            // Update map and info
+            const route = ROUTES[currentRoute];
+            showRoute(route);
+
+            console.log('Added custom location:', newLocation);
+        }
+
+        // Remove custom location
+        function removeCustomLocation(index) {
+            customLocations.splice(index, 1);
+            const route = ROUTES[currentRoute];
+            showRoute(route);
+        }
 
         // Initialize
         function init() {
@@ -248,6 +558,7 @@
 
                 // Show map container
                 document.getElementById('mapContainer').style.display = 'block';
+                document.getElementById('searchContainer').style.display = 'block';
                 document.getElementById('status').style.display = 'none';
 
                 // Force map to recalculate size
@@ -278,13 +589,16 @@
             if (polyline) map.removeLayer(polyline);
 
             const latlngs = [];
+            const allLocations = [...route.locations, ...customLocations];
 
             // Add markers
-            route.locations.forEach((loc, i) => {
+            allLocations.forEach((loc, i) => {
+                const isCustom = loc.custom || false;
+                const markerColor = isCustom ? '#f59e0b' : route.color;
                 const icon = L.divIcon({
                     className: 'custom-icon',
                     html: `<div style="
-                        background: ${route.color};
+                        background: ${markerColor};
                         width: 40px;
                         height: 40px;
                         border-radius: 50%;
@@ -303,13 +617,26 @@
 
                 const marker = L.marker([loc.lat, loc.lng], { icon }).addTo(map);
 
+                const deleteButton = isCustom ?
+                    `<button onclick="removeCustomLocation(${i - route.locations.length})" style="
+                        margin-top: 8px;
+                        padding: 6px 12px;
+                        background: #ef4444;
+                        color: white;
+                        border: none;
+                        border-radius: 6px;
+                        cursor: pointer;
+                        font-size: 12px;
+                    ">🗑️ 移除此景點</button>` : '';
+
                 marker.bindPopup(`
                     <div style="padding: 10px;">
                         <h3 style="margin-bottom: 8px; font-size: 18px;">
                             ${loc.icon} ${loc.name}
                         </h3>
                         <p style="margin-bottom: 8px; color: #666;">${loc.desc}</p>
-                        <p style="color: ${route.color}; font-weight: bold;">⏰ ${loc.time}</p>
+                        <p style="color: ${markerColor}; font-weight: bold;">⏰ ${loc.time}</p>
+                        ${deleteButton}
                     </div>
                 `);
 
@@ -329,22 +656,31 @@
 
             // Update location cards
             updateLocationCards(route);
+
+            // Update distance info
+            updateDistanceInfo(route);
         }
 
         // Update location cards
         function updateLocationCards(route) {
             const container = document.getElementById('locationsList');
+            const allLocations = [...route.locations, ...customLocations];
 
             let html = '';
-            route.locations.forEach((loc, i) => {
+            allLocations.forEach((loc, i) => {
+                const isCustom = loc.custom || false;
+                const markerColor = isCustom ? '#f59e0b' : route.color;
+                const deleteButton = isCustom ?
+                    `<button class="remove-btn" onclick="removeCustomLocation(${i - route.locations.length})">🗑️ 移除</button>` : '';
+
                 html += `
-                    <div class="info-card">
+                    <div class="info-card ${isCustom ? 'custom-location' : ''}">
                         <div style="display: flex; align-items: center; margin-bottom: 10px;">
                             <span class="location-icon">${loc.icon}</span>
-                            <div>
-                                <div style="display: flex; align-items: center; gap: 8px;">
+                            <div style="flex: 1;">
+                                <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
                                     <span style="
-                                        background: ${route.color};
+                                        background: ${markerColor};
                                         color: white;
                                         padding: 4px 10px;
                                         border-radius: 12px;
@@ -352,9 +688,13 @@
                                         font-weight: bold;
                                     ">${i + 1}</span>
                                     <span class="location-name">${loc.name}</span>
+                                    ${isCustom ? '<span style="background: #fbbf24; color: white; padding: 2px 8px; border-radius: 8px; font-size: 12px;">自訂</span>' : ''}
                                 </div>
                                 <div class="location-desc">${loc.desc}</div>
-                                <div class="location-time">⏰ ${loc.time}</div>
+                                <div style="display: flex; align-items: center; justify-content: space-between; margin-top: 8px;">
+                                    <div class="location-time">⏰ ${loc.time}</div>
+                                    ${deleteButton}
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -368,6 +708,9 @@
         function switchRoute(routeKey) {
             console.log('Switching to:', routeKey);
             currentRoute = routeKey;
+
+            // Clear custom locations when switching routes
+            customLocations = [];
 
             // Update buttons
             document.querySelectorAll('.route-btn').forEach(btn => {
@@ -385,6 +728,18 @@
                 showRoute(ROUTES[routeKey]);
             }
         }
+
+        // Allow Enter key to search
+        document.addEventListener('DOMContentLoaded', () => {
+            const searchInput = document.getElementById('searchInput');
+            if (searchInput) {
+                searchInput.addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter') {
+                        searchLocation();
+                    }
+                });
+            }
+        });
 
         // Start when page loads
         function waitForLeaflet() {

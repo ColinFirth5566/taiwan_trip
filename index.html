@@ -6,11 +6,17 @@
     <title>🗺️ 台灣嘉義台南旅遊路線</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+    <!-- Leaflet CSS and JS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
     <style>
         #map {
             width: 100%;
             height: 500px;
             border-radius: 1rem;
+            z-index: 1;
         }
         #canvas3d {
             width: 100%;
@@ -25,12 +31,15 @@
             transform: translateY(-5px);
             box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3);
         }
+        .leaflet-popup-content {
+            font-family: system-ui, -apple-system, sans-serif;
+        }
     </style>
 </head>
 <body class="bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50">
     <div id="root"></div>
 
-    <script type="module">
+    <script>
         // Trip routes data with real coordinates
         const ROUTES = {
             route2: {
@@ -130,37 +139,67 @@
         // Three.js 3D Path Visualization
         class Path3D {
             constructor(containerId) {
-                this.container = document.getElementById(containerId);
+                this.containerId = containerId;
+                this.scene = null;
+                this.camera = null;
+                this.renderer = null;
+                this.locationMarkers = [];
+                this.pathLines = [];
+                this.animationId = null;
+            }
+
+            initialize() {
+                const container = document.getElementById(this.containerId);
+                if (!container) {
+                    console.error('Container not found:', this.containerId);
+                    return false;
+                }
+
+                // Scene
                 this.scene = new THREE.Scene();
-                this.camera = new THREE.PerspectiveCamera(75, this.container.clientWidth / this.container.clientHeight, 0.1, 1000);
+                this.scene.fog = new THREE.Fog(0x1e3a8a, 10, 50);
+
+                // Camera
+                this.camera = new THREE.PerspectiveCamera(
+                    60,
+                    container.clientWidth / container.clientHeight,
+                    0.1,
+                    1000
+                );
+                this.camera.position.set(0, 8, 20);
+                this.camera.lookAt(0, 0, 0);
+
+                // Renderer
                 this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-                this.renderer.setSize(this.container.clientWidth, this.container.clientHeight);
-                this.container.appendChild(this.renderer.domElement);
+                this.renderer.setSize(container.clientWidth, container.clientHeight);
+                this.renderer.setClearColor(0x1e3a8a, 1);
+                container.innerHTML = '';
+                container.appendChild(this.renderer.domElement);
 
                 // Lighting
                 const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
                 this.scene.add(ambientLight);
+
                 const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
                 directionalLight.position.set(10, 10, 5);
                 this.scene.add(directionalLight);
 
-                this.camera.position.z = 15;
-                this.camera.position.y = 5;
-                this.camera.lookAt(0, 0, 0);
-
-                this.locationMarkers = [];
-                this.pathLines = [];
-
-                // Animation
-                this.animate = this.animate.bind(this);
-                this.animate();
+                const pointLight = new THREE.PointLight(0xffffff, 0.5);
+                pointLight.position.set(0, 10, 0);
+                this.scene.add(pointLight);
 
                 // Handle resize
                 window.addEventListener('resize', () => {
-                    this.camera.aspect = this.container.clientWidth / this.container.clientHeight;
+                    if (!this.camera || !this.renderer) return;
+                    const container = document.getElementById(this.containerId);
+                    if (!container) return;
+                    this.camera.aspect = container.clientWidth / container.clientHeight;
                     this.camera.updateProjectionMatrix();
-                    this.renderer.setSize(this.container.clientWidth, this.container.clientHeight);
+                    this.renderer.setSize(container.clientWidth, container.clientHeight);
                 });
+
+                console.log('3D Scene initialized successfully');
+                return true;
             }
 
             clearScene() {
@@ -170,33 +209,44 @@
                 this.pathLines = [];
             }
 
-            createPath(locations, color) {
-                this.clearScene();
+            createPath(locations, colorHex) {
+                if (!this.scene) {
+                    console.error('Scene not initialized');
+                    return;
+                }
 
-                // Create location markers
+                this.clearScene();
+                console.log('Creating 3D path with', locations.length, 'locations');
+
+                const color = new THREE.Color(colorHex);
+
+                // Create location markers in a circle
+                const numLocations = locations.length;
+                const radius = 8;
+
                 locations.forEach((loc, index) => {
-                    // Sphere for location
-                    const geometry = new THREE.SphereGeometry(0.5, 32, 32);
+                    // Main sphere
+                    const geometry = new THREE.SphereGeometry(0.6, 32, 32);
                     const material = new THREE.MeshPhongMaterial({
                         color: color,
                         emissive: color,
-                        emissiveIntensity: 0.3
+                        emissiveIntensity: 0.4,
+                        shininess: 100
                     });
                     const sphere = new THREE.Mesh(geometry, material);
 
-                    // Position based on index (spread along path)
-                    const angle = (index / locations.length) * Math.PI * 2;
-                    const radius = 8;
+                    // Position in circle with varying heights
+                    const angle = (index / numLocations) * Math.PI * 2;
                     sphere.position.x = Math.cos(angle) * radius;
                     sphere.position.z = Math.sin(angle) * radius;
-                    sphere.position.y = Math.sin(index * 0.5) * 2;
+                    sphere.position.y = Math.sin(index * 0.8) * 2;
 
-                    sphere.userData = { index, name: loc.name };
+                    sphere.userData = { index, name: loc.name, baseY: sphere.position.y };
                     this.locationMarkers.push(sphere);
                     this.scene.add(sphere);
 
-                    // Add glow effect
-                    const glowGeometry = new THREE.SphereGeometry(0.7, 32, 32);
+                    // Glow effect
+                    const glowGeometry = new THREE.SphereGeometry(0.8, 32, 32);
                     const glowMaterial = new THREE.MeshBasicMaterial({
                         color: color,
                         transparent: true,
@@ -204,243 +254,266 @@
                     });
                     const glow = new THREE.Mesh(glowGeometry, glowMaterial);
                     sphere.add(glow);
+
+                    // Number label (ring)
+                    const ringGeometry = new THREE.RingGeometry(0.7, 0.9, 32);
+                    const ringMaterial = new THREE.MeshBasicMaterial({
+                        color: 0xffffff,
+                        side: THREE.DoubleSide,
+                        transparent: true,
+                        opacity: 0.8
+                    });
+                    const ring = new THREE.Mesh(ringGeometry, ringMaterial);
+                    ring.position.y = 1.2;
+                    ring.rotation.x = -Math.PI / 2;
+                    sphere.add(ring);
                 });
 
-                // Create path lines
+                // Create path tubes connecting locations
                 for (let i = 0; i < this.locationMarkers.length - 1; i++) {
                     const start = this.locationMarkers[i].position;
                     const end = this.locationMarkers[i + 1].position;
 
+                    // Create curve with control points
                     const points = [];
-                    points.push(new THREE.Vector3(start.x, start.y, start.z));
+                    const segments = 20;
 
-                    // Add curve points
-                    for (let t = 0.1; t < 1; t += 0.1) {
+                    for (let j = 0; j <= segments; j++) {
+                        const t = j / segments;
                         const x = start.x + (end.x - start.x) * t;
-                        const y = start.y + (end.y - start.y) * t + Math.sin(t * Math.PI) * 1;
                         const z = start.z + (end.z - start.z) * t;
+                        const y = start.y + (end.y - start.y) * t + Math.sin(t * Math.PI) * 1.5;
                         points.push(new THREE.Vector3(x, y, z));
                     }
 
-                    points.push(new THREE.Vector3(end.x, end.y, end.z));
-
                     const curve = new THREE.CatmullRomCurve3(points);
-                    const tubeGeometry = new THREE.TubeGeometry(curve, 64, 0.1, 8, false);
+                    const tubeGeometry = new THREE.TubeGeometry(curve, 64, 0.15, 8, false);
                     const tubeMaterial = new THREE.MeshPhongMaterial({
                         color: color,
                         transparent: true,
-                        opacity: 0.8
+                        opacity: 0.8,
+                        shininess: 80
                     });
                     const tube = new THREE.Mesh(tubeGeometry, tubeMaterial);
                     this.pathLines.push(tube);
                     this.scene.add(tube);
                 }
+
+                console.log('3D path created successfully');
             }
 
             animate() {
-                requestAnimationFrame(this.animate);
+                if (!this.renderer || !this.scene || !this.camera) return;
 
-                // Rotate scene slowly
-                this.scene.rotation.y += 0.002;
+                this.animationId = requestAnimationFrame(() => this.animate());
+
+                // Rotate scene
+                this.scene.rotation.y += 0.003;
 
                 // Animate markers
+                const time = Date.now() * 0.001;
                 this.locationMarkers.forEach((marker, index) => {
                     marker.rotation.y += 0.02;
-                    marker.position.y += Math.sin(Date.now() * 0.001 + index) * 0.002;
+                    marker.position.y = marker.userData.baseY + Math.sin(time + index) * 0.2;
+
+                    // Pulse glow
+                    if (marker.children[0]) {
+                        const scale = 1 + Math.sin(time * 2 + index) * 0.1;
+                        marker.children[0].scale.set(scale, scale, scale);
+                    }
                 });
 
                 this.renderer.render(this.scene, this.camera);
             }
+
+            start() {
+                if (this.animationId) {
+                    cancelAnimationFrame(this.animationId);
+                }
+                this.animate();
+            }
+
+            stop() {
+                if (this.animationId) {
+                    cancelAnimationFrame(this.animationId);
+                    this.animationId = null;
+                }
+            }
         }
 
-        // Google Maps Integration
+        // Leaflet Map Integration
         class TripMap {
             constructor() {
                 this.map = null;
                 this.markers = [];
-                this.path = null;
-                this.directionsService = null;
-                this.directionsRenderer = null;
+                this.polyline = null;
             }
 
-            async initialize(containerId, center) {
-                // Load Google Maps
-                if (!window.google) {
-                    await this.loadGoogleMaps();
+            initialize(containerId, center) {
+                const container = document.getElementById(containerId);
+                if (!container) {
+                    console.error('Map container not found');
+                    return false;
                 }
 
-                this.map = new google.maps.Map(document.getElementById(containerId), {
-                    zoom: 10,
-                    center: center,
-                    styles: [
+                // Initialize Leaflet map
+                this.map = L.map(containerId).setView([center.lat, center.lng], 10);
+
+                // Add OpenStreetMap tiles
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    attribution: '© OpenStreetMap contributors',
+                    maxZoom: 19
+                }).addTo(this.map);
+
+                console.log('Map initialized successfully');
+                return true;
+            }
+
+            clearMap() {
+                this.markers.forEach(marker => this.map.removeLayer(marker));
+                this.markers = [];
+                if (this.polyline) {
+                    this.map.removeLayer(this.polyline);
+                    this.polyline = null;
+                }
+            }
+
+            showRoute(locations, colorHex) {
+                if (!this.map) return;
+
+                this.clearMap();
+                console.log('Showing route with', locations.length, 'locations');
+
+                const latlngs = [];
+
+                // Add markers
+                locations.forEach((loc, index) => {
+                    const customIcon = L.divIcon({
+                        className: 'custom-marker',
+                        html: `
+                            <div style="
+                                background: ${colorHex};
+                                width: 40px;
+                                height: 40px;
+                                border-radius: 50%;
+                                border: 4px solid white;
+                                display: flex;
+                                align-items: center;
+                                justify-content: center;
+                                font-weight: bold;
+                                color: white;
+                                font-size: 18px;
+                                box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+                            ">${index + 1}</div>
+                        `,
+                        iconSize: [40, 40],
+                        iconAnchor: [20, 20]
+                    });
+
+                    const marker = L.marker([loc.lat, loc.lng], { icon: customIcon }).addTo(this.map);
+
+                    marker.bindPopup(`
+                        <div style="min-width: 200px;">
+                            <h3 style="font-weight: bold; font-size: 18px; margin-bottom: 8px;">
+                                ${loc.icon} ${loc.name}
+                            </h3>
+                            <p style="color: #666; margin-bottom: 8px; font-size: 14px;">${loc.description}</p>
+                            <p style="color: ${colorHex}; font-weight: bold;">
+                                ⏰ ${loc.time}
+                            </p>
+                        </div>
+                    `);
+
+                    this.markers.push(marker);
+                    latlngs.push([loc.lat, loc.lng]);
+                });
+
+                // Draw route line
+                this.polyline = L.polyline(latlngs, {
+                    color: colorHex,
+                    weight: 4,
+                    opacity: 0.7,
+                    dashArray: '10, 10',
+                    lineJoin: 'round'
+                }).addTo(this.map);
+
+                // Add arrow decorators
+                const arrowDecorator = L.polylineDecorator(this.polyline, {
+                    patterns: [
                         {
-                            featureType: "poi",
-                            elementType: "labels",
-                            stylers: [{ visibility: "off" }]
+                            offset: 50,
+                            repeat: 100,
+                            symbol: L.Symbol.arrowHead({
+                                pixelSize: 12,
+                                polygon: false,
+                                pathOptions: {
+                                    stroke: true,
+                                    weight: 3,
+                                    color: colorHex
+                                }
+                            })
                         }
                     ]
                 });
-
-                this.directionsService = new google.maps.DirectionsService();
-                this.directionsRenderer = new google.maps.DirectionsRenderer({
-                    map: this.map,
-                    suppressMarkers: true,
-                    polylineOptions: {
-                        strokeColor: '#3b82f6',
-                        strokeWeight: 5,
-                        strokeOpacity: 0.8
-                    }
-                });
-            }
-
-            async loadGoogleMaps() {
-                return new Promise((resolve, reject) => {
-                    const script = document.createElement('script');
-                    script.src = `https://maps.googleapis.com/maps/api/js?key=YOUR_API_KEY&callback=initMap`;
-                    script.async = true;
-                    script.defer = true;
-                    window.initMap = resolve;
-                    document.head.appendChild(script);
-                });
-            }
-
-            clearMarkers() {
-                this.markers.forEach(marker => marker.setMap(null));
-                this.markers = [];
-                if (this.directionsRenderer) {
-                    this.directionsRenderer.setDirections({ routes: [] });
-                }
-            }
-
-            showRoute(locations, color) {
-                this.clearMarkers();
-
-                // Add markers for each location
-                locations.forEach((loc, index) => {
-                    const marker = new google.maps.Marker({
-                        position: { lat: loc.lat, lng: loc.lng },
-                        map: this.map,
-                        label: {
-                            text: `${index + 1}`,
-                            color: 'white',
-                            fontWeight: 'bold'
-                        },
-                        title: loc.name,
-                        animation: google.maps.Animation.DROP,
-                        icon: {
-                            path: google.maps.SymbolPath.CIRCLE,
-                            scale: 12,
-                            fillColor: color,
-                            fillOpacity: 1,
-                            strokeColor: 'white',
-                            strokeWeight: 3
-                        }
-                    });
-
-                    const infoWindow = new google.maps.InfoWindow({
-                        content: `
-                            <div style="padding: 10px;">
-                                <h3 style="font-weight: bold; font-size: 16px; margin-bottom: 5px;">
-                                    ${loc.icon} ${loc.name}
-                                </h3>
-                                <p style="color: #666; margin-bottom: 5px;">${loc.description}</p>
-                                <p style="color: #3b82f6; font-weight: bold;">⏰ ${loc.time}</p>
-                            </div>
-                        `
-                    });
-
-                    marker.addListener('click', () => {
-                        infoWindow.open(this.map, marker);
-                    });
-
-                    this.markers.push(marker);
-                });
-
-                // Draw route
-                if (locations.length > 1) {
-                    const waypoints = locations.slice(1, -1).map(loc => ({
-                        location: { lat: loc.lat, lng: loc.lng },
-                        stopover: true
-                    }));
-
-                    this.directionsService.route({
-                        origin: { lat: locations[0].lat, lng: locations[0].lng },
-                        destination: { lat: locations[locations.length - 1].lat, lng: locations[locations.length - 1].lng },
-                        waypoints: waypoints,
-                        travelMode: google.maps.TravelMode.DRIVING
-                    }, (result, status) => {
-                        if (status === 'OK') {
-                            this.directionsRenderer.setDirections(result);
-                        }
-                    });
-                }
+                arrowDecorator.addTo(this.map);
 
                 // Fit bounds
-                const bounds = new google.maps.LatLngBounds();
-                locations.forEach(loc => bounds.extend({ lat: loc.lat, lng: loc.lng }));
-                this.map.fitBounds(bounds);
+                const bounds = L.latLngBounds(latlngs);
+                this.map.fitBounds(bounds, { padding: [50, 50] });
             }
         }
 
-        // Main App Component
+        // Main App
         class TripApp {
             constructor() {
                 this.currentRoute = 'route2';
                 this.path3D = null;
                 this.tripMap = null;
-                this.render();
             }
 
             async init() {
-                // Initialize 3D scene
-                this.path3D = new Path3D('canvas3d');
+                console.log('Initializing app...');
 
-                // Initialize Google Maps (simplified without API key)
-                this.initSimpleMap();
+                // Wait a bit for DOM to be fully ready
+                await new Promise(resolve => setTimeout(resolve, 100));
+
+                // Initialize 3D
+                this.path3D = new Path3D('canvas3d');
+                if (this.path3D.initialize()) {
+                    console.log('3D initialized');
+                } else {
+                    console.error('Failed to initialize 3D');
+                }
+
+                // Initialize Map
+                const route = ROUTES[this.currentRoute];
+                const center = route.locations[0];
+                this.tripMap = new TripMap();
+                if (this.tripMap.initialize('map', center)) {
+                    console.log('Map initialized');
+                } else {
+                    console.error('Failed to initialize map');
+                }
 
                 // Show initial route
                 this.showRoute(this.currentRoute);
             }
 
-            initSimpleMap() {
-                // Since we don't have a real API key, create a placeholder
-                const mapContainer = document.getElementById('map');
-                const route = ROUTES[this.currentRoute];
-
-                // Create a visual representation
-                mapContainer.innerHTML = `
-                    <div class="w-full h-full bg-blue-100 rounded-lg flex items-center justify-center relative overflow-hidden">
-                        <div class="absolute inset-0 opacity-20">
-                            <svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
-                                <defs>
-                                    <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
-                                        <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#3b82f6" stroke-width="1"/>
-                                    </pattern>
-                                </defs>
-                                <rect width="100%" height="100%" fill="url(#grid)" />
-                            </svg>
-                        </div>
-                        <div class="text-center z-10">
-                            <p class="text-2xl mb-2">🗺️</p>
-                            <p class="text-gray-600 font-semibold">Google Maps 路線圖</p>
-                            <p class="text-sm text-gray-500 mt-2">包含 ${route.locations.length} 個景點</p>
-                            <p class="text-xs text-gray-400 mt-4">（需要 Google Maps API Key 才能顯示實際地圖）</p>
-                        </div>
-                    </div>
-                `;
-            }
-
             showRoute(routeKey) {
+                console.log('Showing route:', routeKey);
                 this.currentRoute = routeKey;
                 const route = ROUTES[routeKey];
 
-                // Update 3D visualization
+                // Update 3D
                 if (this.path3D) {
                     this.path3D.createPath(route.locations, route.color);
+                    this.path3D.start();
                 }
 
-                // Update map placeholder
-                this.initSimpleMap();
+                // Update Map
+                if (this.tripMap) {
+                    this.tripMap.showRoute(route.locations, route.color);
+                }
 
                 this.render();
             }
@@ -468,7 +541,7 @@
                                         ? 'bg-green-500 text-white shadow-lg scale-105'
                                         : 'bg-white text-gray-700 hover:bg-gray-100'
                                     }">
-                                    路線二：嘉義文化之旅
+                                    🌿 路線二：嘉義文化之旅
                                 </button>
                                 <button
                                     onclick="app.showRoute('day1')"
@@ -477,52 +550,63 @@
                                         ? 'bg-amber-500 text-white shadow-lg scale-105'
                                         : 'bg-white text-gray-700 hover:bg-gray-100'
                                     }">
-                                    第一天：台南美食之旅
+                                    🍜 第一天：台南美食之旅
                                 </button>
                             </div>
 
                             <!-- 3D Visualization -->
                             <div class="bg-white rounded-2xl shadow-2xl p-6 mb-8">
-                                <h2 class="text-2xl font-bold text-gray-800 mb-4">🎨 3D 路線視覺化</h2>
+                                <h2 class="text-2xl font-bold text-gray-800 mb-4 flex items-center gap-2">
+                                    <span>🎨</span>
+                                    <span>3D 路線視覺化</span>
+                                    <span class="text-sm font-normal text-gray-500">(自動旋轉展示)</span>
+                                </h2>
                                 <div id="canvas3d"></div>
                                 <p class="text-center text-gray-500 text-sm mt-4">
-                                    🖱️ 3D 路徑會自動旋轉展示所有景點
+                                    💡 彩色球體代表各個景點，會自動旋轉並呼吸閃爍
                                 </p>
                             </div>
 
-                            <!-- Google Maps -->
+                            <!-- Leaflet Map -->
                             <div class="bg-white rounded-2xl shadow-2xl p-6 mb-8">
-                                <h2 class="text-2xl font-bold text-gray-800 mb-4">📍 Google Maps 路線</h2>
+                                <h2 class="text-2xl font-bold text-gray-800 mb-4 flex items-center gap-2">
+                                    <span>📍</span>
+                                    <span>互動式地圖路線</span>
+                                    <span class="text-sm font-normal text-gray-500">(點擊標記查看詳情)</span>
+                                </h2>
                                 <div id="map"></div>
+                                <p class="text-center text-gray-500 text-sm mt-4">
+                                    🗺️ 使用 OpenStreetMap，點擊數字標記查看景點資訊
+                                </p>
                             </div>
 
                             <!-- Location Cards -->
                             <div class="bg-white rounded-2xl shadow-2xl p-6 mb-8">
                                 <h2 class="text-2xl font-bold text-gray-800 mb-6">
-                                    ${route.name}
+                                    📋 ${route.name} - 詳細行程
                                 </h2>
                                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                                     ${route.locations.map((loc, index) => `
                                         <div class="location-card bg-gradient-to-br from-white to-gray-50 rounded-xl p-6 border-2 border-gray-200 shadow-lg">
                                             <div class="flex items-start gap-4">
-                                                <div class="text-5xl">${loc.icon}</div>
-                                                <div class="flex-1">
+                                                <div class="text-5xl flex-shrink-0">${loc.icon}</div>
+                                                <div class="flex-1 min-w-0">
                                                     <div class="flex items-center gap-2 mb-2">
-                                                        <span class="bg-${this.currentRoute === 'route2' ? 'green' : 'amber'}-500 text-white font-bold px-3 py-1 rounded-full text-sm">
+                                                        <span class="bg-${this.currentRoute === 'route2' ? 'green' : 'amber'}-500 text-white font-bold px-3 py-1 rounded-full text-sm flex-shrink-0">
                                                             ${index + 1}
                                                         </span>
-                                                        <h3 class="text-xl font-bold text-gray-800">
+                                                        <h3 class="text-xl font-bold text-gray-800 truncate">
                                                             ${loc.name}
                                                         </h3>
                                                     </div>
-                                                    <p class="text-gray-600 text-sm mb-3">
+                                                    <p class="text-gray-600 text-sm mb-3 line-clamp-2">
                                                         ${loc.description}
                                                     </p>
-                                                    <div class="flex items-center text-blue-600 font-semibold">
+                                                    <div class="flex items-center text-blue-600 font-semibold text-sm mb-2">
                                                         <span class="mr-2">⏰</span>
-                                                        ${loc.time}
+                                                        <span>${loc.time}</span>
                                                     </div>
-                                                    <div class="text-xs text-gray-400 mt-2">
+                                                    <div class="text-xs text-gray-400">
                                                         📍 ${loc.lat.toFixed(4)}, ${loc.lng.toFixed(4)}
                                                     </div>
                                                 </div>
@@ -532,24 +616,66 @@
                                 </div>
                             </div>
 
+                            <!-- Info Cards -->
+                            <div class="grid md:grid-cols-2 gap-6 mb-8">
+                                <div class="bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl shadow-2xl p-6 text-white">
+                                    <h3 class="text-2xl font-bold mb-4">💡 使用提示</h3>
+                                    <ul class="space-y-2">
+                                        <li>🎨 3D 視覺化會自動旋轉展示所有景點</li>
+                                        <li>🗺️ 點擊地圖上的數字標記查看景點詳情</li>
+                                        <li>🔄 點擊上方按鈕切換不同旅遊路線</li>
+                                        <li>📱 支援手機、平板、電腦各種裝置</li>
+                                    </ul>
+                                </div>
+                                <div class="bg-gradient-to-br from-green-500 to-teal-600 rounded-2xl shadow-2xl p-6 text-white">
+                                    <h3 class="text-2xl font-bold mb-4">🎯 路線特色</h3>
+                                    <ul class="space-y-2">
+                                        ${this.currentRoute === 'route2' ? `
+                                            <li>🏛️ 故宮南院欣賞亞洲藝術</li>
+                                            <li>⚓ 布袋漁港品嚐新鮮海產</li>
+                                            <li>👠 高跟鞋教堂浪漫打卡</li>
+                                            <li>🕯️ 新港香藝文化體驗</li>
+                                        ` : `
+                                            <li>⛩️ 南鯤鯓代天宮參拜祈福</li>
+                                            <li>🦐 阿樂活海鮮大快朵頤</li>
+                                            <li>🏨 飯店休息補充體力</li>
+                                            <li>🌃 國華街夜市美食天堂</li>
+                                        `}
+                                    </ul>
+                                </div>
+                            </div>
+
                             <!-- Footer -->
                             <div class="text-center text-gray-500 text-sm">
-                                <p>© 2024 台灣旅遊路線規劃 | Made with ❤️ using Three.js & Google Maps</p>
+                                <p>© 2024 台灣旅遊路線規劃 | Made with ❤️ using Three.js & Leaflet.js</p>
+                                <p class="mt-2">🗺️ 地圖資料來源：OpenStreetMap contributors</p>
                             </div>
                         </div>
                     </div>
                 `;
 
                 document.getElementById('root').innerHTML = html;
-
-                // Initialize after render
-                setTimeout(() => this.init(), 100);
             }
         }
 
-        // Initialize app
-        const app = new TripApp();
-        window.app = app;
+        // Initialize app when DOM is ready
+        let app;
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', () => {
+                app = new TripApp();
+                app.render();
+                app.init();
+                window.app = app;
+            });
+        } else {
+            app = new TripApp();
+            app.render();
+            app.init();
+            window.app = app;
+        }
     </script>
+
+    <!-- Leaflet Polyline Decorator for arrows -->
+    <script src="https://unpkg.com/leaflet-polylinedecorator@1.6.0/dist/leaflet.polylineDecorator.js"></script>
 </body>
 </html>

@@ -6,16 +6,12 @@
     <title>🗺️ 台灣嘉義台南旅遊路線</title>
     <script src="https://cdn.tailwindcss.com"></script>
 
-    <!-- Cesium.js for 3D Globe -->
-    <script src="https://cesium.com/downloads/cesiumjs/releases/1.110/Build/Cesium/Cesium.js"></script>
-    <link href="https://cesium.com/downloads/cesiumjs/releases/1.110/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
-
-    <!-- Leaflet for 2D Maps -->
+    <!-- Leaflet for Maps -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
     <style>
-        #map3d, #map2d {
+        #map2d, #map3d {
             width: 100%;
             height: 600px;
             border-radius: 1rem;
@@ -27,39 +23,15 @@
             transform: translateY(-5px);
             box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3);
         }
-        .cesium-viewer-bottom {
-            display: none !important;
-        }
-        .control-panel {
-            position: absolute;
-            top: 10px;
-            right: 10px;
-            background: white;
-            padding: 10px;
-            border-radius: 8px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
-            z-index: 1000;
-        }
-        .control-btn {
-            background: white;
-            border: 2px solid #ddd;
-            padding: 8px 16px;
-            border-radius: 6px;
-            cursor: pointer;
-            font-weight: bold;
-            margin: 3px;
-            display: block;
-            width: 100%;
-            text-align: left;
-            transition: all 0.2s;
-        }
-        .control-btn:hover {
-            background: #f0f0f0;
-            transform: translateX(3px);
-        }
-        .cesium-viewer .cesium-viewer-toolbar {
-            top: 10px;
-            right: 200px;
+        #map3d {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 18px;
+            text-align: center;
+            padding: 40px;
         }
     </style>
 </head>
@@ -72,13 +44,7 @@
                 <h1 class="text-4xl md:text-5xl font-bold text-gray-800 mb-2">
                     🗺️ 台灣嘉義台南旅遊路線
                 </h1>
-                <p class="text-gray-600 text-lg">探索南台灣的美食與文化之旅 - 免費 3D 實景地圖</p>
-            </div>
-
-            <!-- Feature Notice -->
-            <div class="bg-gradient-to-r from-green-500 to-teal-500 text-white rounded-2xl p-6 mb-8">
-                <h3 class="text-2xl font-bold mb-2">✨ 完全免費的 3D 地球引擎</h3>
-                <p class="text-lg">使用 Cesium.js 開源技術，顯示真實台灣地形、山脈、海洋，無需任何 API Key！</p>
+                <p class="text-gray-600 text-lg">探索南台灣的美食與文化之旅</p>
             </div>
 
             <!-- Route Selector -->
@@ -97,48 +63,41 @@
                 </button>
             </div>
 
-            <!-- 3D Cesium Globe -->
+            <!-- 3D Map Notice -->
             <div class="bg-white rounded-2xl shadow-2xl p-6 mb-8">
                 <h2 class="text-2xl font-bold text-gray-800 mb-4 flex items-center gap-2">
                     <span>🌍</span>
-                    <span>3D 台灣實景地圖</span>
-                    <span class="text-sm font-normal text-green-600">(完全免費・真實地形)</span>
+                    <span>3D 地圖視覺化</span>
                 </h2>
-                <div style="position: relative;">
-                    <div id="map3d"></div>
-                    <div class="control-panel">
-                        <div style="font-weight: bold; margin-bottom: 10px; color: #333;">🎮 視角控制</div>
-                        <button onclick="setView('bird')" class="control-btn">🦅 鳥瞰視角</button>
-                        <button onclick="setView('tilt')" class="control-btn">🎥 傾斜視角</button>
-                        <button onclick="setView('close')" class="control-btn">🔍 近距離</button>
-                        <button onclick="flyThroughRoute()" class="control-btn">✈️ 飛覽路線</button>
-                        <button onclick="resetView()" class="control-btn">🔄 重置視角</button>
-                    </div>
-                </div>
-                <div class="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-                    <div class="bg-blue-50 p-3 rounded-lg">
-                        <span class="font-bold">🖱️ 左鍵拖動：</span>旋轉地球
-                    </div>
-                    <div class="bg-green-50 p-3 rounded-lg">
-                        <span class="font-bold">🖱️ 右鍵拖動：</span>平移視角
-                    </div>
-                    <div class="bg-purple-50 p-3 rounded-lg">
-                        <span class="font-bold">🖱️ 滾輪：</span>縮放遠近
+                <div id="map3d">
+                    <div>
+                        <div style="font-size: 48px; margin-bottom: 20px;">🗺️</div>
+                        <h3 style="font-size: 24px; font-weight: bold; margin-bottom: 10px;">3D 地圖開發中</h3>
+                        <p style="opacity: 0.9;">目前使用下方的 2D 互動地圖查看路線</p>
+                        <p style="opacity: 0.9; margin-top: 10px;">包含完整的景點標記、路線規劃和詳細資訊</p>
                     </div>
                 </div>
             </div>
 
-            <!-- 2D Leaflet Map -->
+            <!-- 2D Interactive Map -->
             <div class="bg-white rounded-2xl shadow-2xl p-6 mb-8">
                 <h2 class="text-2xl font-bold text-gray-800 mb-4 flex items-center gap-2">
                     <span>📍</span>
-                    <span>2D 平面地圖</span>
+                    <span>互動式地圖路線</span>
                     <span class="text-sm font-normal text-gray-500">(點擊標記查看詳情)</span>
                 </h2>
                 <div id="map2d"></div>
-                <p class="text-center text-gray-500 text-sm mt-4">
-                    🗺️ 使用 OpenStreetMap，點擊數字標記查看景點資訊
-                </p>
+                <div class="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                    <div class="bg-blue-50 p-3 rounded-lg text-center">
+                        <span class="font-bold">🖱️ 拖動地圖</span><br>移動查看不同區域
+                    </div>
+                    <div class="bg-green-50 p-3 rounded-lg text-center">
+                        <span class="font-bold">🔍 滾輪縮放</span><br>放大查看細節
+                    </div>
+                    <div class="bg-purple-50 p-3 rounded-lg text-center">
+                        <span class="font-bold">📍 點擊標記</span><br>查看景點資訊
+                    </div>
+                </div>
             </div>
 
             <!-- Location Cards -->
@@ -146,47 +105,42 @@
                 <!-- Will be filled by JavaScript -->
             </div>
 
-            <!-- Info Section -->
-            <div class="grid md:grid-cols-2 gap-6 mb-8">
-                <div class="bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl shadow-2xl p-6 text-white">
-                    <h3 class="text-2xl font-bold mb-4">💡 使用說明</h3>
-                    <ul class="space-y-2">
-                        <li>🌍 3D 地圖顯示真實台灣地形與高度</li>
-                        <li>🏔️ 可以看到中央山脈和海岸線</li>
-                        <li>🎯 彩色標記顯示景點位置</li>
-                        <li>✈️ 使用飛覽功能自動巡航路線</li>
-                        <li>🖱️ 自由旋轉、縮放查看細節</li>
-                    </ul>
+            <!-- Route Statistics -->
+            <div class="grid md:grid-cols-3 gap-6 mb-8">
+                <div class="bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl shadow-xl p-6 text-white text-center">
+                    <div class="text-5xl mb-3">📍</div>
+                    <div class="text-3xl font-bold mb-2" id="statLocations">6</div>
+                    <div class="text-lg opacity-90">景點數量</div>
                 </div>
-                <div class="bg-gradient-to-br from-green-500 to-teal-600 rounded-2xl shadow-2xl p-6 text-white">
-                    <h3 class="text-2xl font-bold mb-4">🎯 技術特色</h3>
-                    <ul class="space-y-2">
-                        <li>✨ Cesium.js 開源 3D 引擎</li>
-                        <li>🆓 完全免費，無需 API Key</li>
-                        <li>🌐 全球高解析度地形數據</li>
-                        <li>📡 真實衛星影像底圖</li>
-                        <li>⚡ 高效能 WebGL 渲染</li>
-                    </ul>
+                <div class="bg-gradient-to-br from-green-500 to-green-600 rounded-2xl shadow-xl p-6 text-white text-center">
+                    <div class="text-5xl mb-3">🚗</div>
+                    <div class="text-3xl font-bold mb-2" id="statDistance">--</div>
+                    <div class="text-lg opacity-90">預估距離</div>
+                </div>
+                <div class="bg-gradient-to-br from-purple-500 to-purple-600 rounded-2xl shadow-xl p-6 text-white text-center">
+                    <div class="text-5xl mb-3">⏱️</div>
+                    <div class="text-3xl font-bold mb-2" id="statDuration">--</div>
+                    <div class="text-lg opacity-90">預估時間</div>
                 </div>
             </div>
 
             <!-- Footer -->
             <div class="text-center text-gray-500 text-sm">
-                <p>© 2024 台灣旅遊路線規劃 | Made with ❤️ using Cesium.js & Leaflet.js</p>
-                <p class="mt-2">🌍 地形資料：Cesium World Terrain | 🗺️ 2D 地圖：OpenStreetMap contributors</p>
+                <p>© 2024 台灣旅遊路線規劃 | Made with ❤️ using Leaflet.js & OpenStreetMap</p>
+                <p class="mt-2">🗺️ 地圖資料來源：OpenStreetMap contributors</p>
             </div>
         </div>
     </div>
 
     <script>
-        console.log('Script started');
+        console.log('Script started - checking libraries...');
+        console.log('Leaflet loaded:', typeof L !== 'undefined');
 
         // Trip routes data
         const ROUTES = {
             route2: {
                 name: '路線二：嘉義文化之旅',
                 color: '#10b981',
-                cesiumColor: Cesium.Color.fromCssColorString('#10b981'),
                 locations: [
                     { name: '故宮南院', description: '國立故宮博物院南部院區，亞洲藝術文化博物館', lat: 23.4694, lng: 120.3394, icon: '🏛️', time: '09:00-11:00' },
                     { name: '布袋漁港', description: '新鮮海產、觀光漁港、海鮮市場', lat: 23.3778, lng: 120.1647, icon: '⚓', time: '11:30-12:30' },
@@ -199,7 +153,6 @@
             day1: {
                 name: '第一天：台南美食之旅',
                 color: '#f59e0b',
-                cesiumColor: Cesium.Color.fromCssColorString('#f59e0b'),
                 locations: [
                     { name: '南鯤鯓代天宮', description: '台灣王爺總廟，國定古蹟', lat: 23.2861, lng: 120.0758, icon: '⛩️', time: '09:00-11:00' },
                     { name: '阿樂活海鮮', description: '新鮮海產料理，在地推薦', lat: 23.1408, lng: 120.1472, icon: '🦐', time: '12:00-13:30' },
@@ -210,300 +163,169 @@
         };
 
         let currentRoute = 'route2';
-        let viewer = null;
-        let cesiumEntities = [];
+        let map = null;
+        let markers = [];
+        let polyline = null;
 
-        let map2d = null;
-        let map2dMarkers = [];
-        let map2dPolyline = null;
-
-        // Initialize Cesium 3D Globe
-        function initCesium() {
-            console.log('Initializing Cesium 3D Globe...');
-
-            // Set default access token (public token for demo)
-            Cesium.Ion.defaultAccessToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI5N2UyMjcwOS00MDY1LTQxYjEtYjZjMy00YTU0ZTg1YmUwYWQiLCJpZCI6ODAzMDYsImlhdCI6MTY0Mjc0ODI2MX0.dkwAL1CcljUV7NA7fDbhXXnmyZQU_c-G5zRx8PtEcxE';
-
-            viewer = new Cesium.Viewer('map3d', {
-                terrainProvider: Cesium.createWorldTerrain(),
-                imageryProvider: new Cesium.IonImageryProvider({ assetId: 2 }),
-                baseLayerPicker: false,
-                geocoder: false,
-                homeButton: false,
-                sceneModePicker: false,
-                navigationHelpButton: false,
-                animation: false,
-                timeline: false,
-                fullscreenButton: false,
-                vrButton: false,
-                scene3DOnly: true,
-                requestRenderMode: false,
-                maximumRenderTimeChange: Infinity
-            });
-
-            // Enable lighting
-            viewer.scene.globe.enableLighting = true;
-            viewer.scene.globe.depthTestAgainstTerrain = true;
-
-            console.log('Cesium initialized');
+        // Calculate distance between two points (Haversine formula)
+        function calculateDistance(lat1, lon1, lat2, lon2) {
+            const R = 6371; // Earth radius in km
+            const dLat = (lat2 - lat1) * Math.PI / 180;
+            const dLon = (lon2 - lon1) * Math.PI / 180;
+            const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                     Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                     Math.sin(dLon/2) * Math.sin(dLon/2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+            return R * c;
         }
 
-        // Show route on Cesium
-        function showCesiumRoute(route) {
-            if (!viewer) return;
+        // Calculate route statistics
+        function calculateRouteStats(route) {
+            let totalDistance = 0;
+            for (let i = 0; i < route.locations.length - 1; i++) {
+                const loc1 = route.locations[i];
+                const loc2 = route.locations[i + 1];
+                totalDistance += calculateDistance(loc1.lat, loc1.lng, loc2.lat, loc2.lng);
+            }
+            return {
+                distance: totalDistance.toFixed(1) + ' km',
+                duration: Math.round(totalDistance / 40 * 60) + ' 分鐘'
+            };
+        }
 
-            // Clear old entities
-            cesiumEntities.forEach(entity => viewer.entities.remove(entity));
-            cesiumEntities = [];
+        // Initialize map
+        function initMap() {
+            console.log('Initializing map...');
 
-            const positions = [];
+            try {
+                const route = ROUTES[currentRoute];
+                const center = route.locations[0];
 
-            // Add markers
-            route.locations.forEach((loc, index) => {
-                const position = Cesium.Cartesian3.fromDegrees(loc.lng, loc.lat, 1000);
-                positions.push(Cesium.Cartesian3.fromDegrees(loc.lng, loc.lat, 0));
-
-                // Billboard (marker)
-                const entity = viewer.entities.add({
-                    position: position,
-                    billboard: {
-                        image: createMarkerCanvas(index + 1, route.color),
-                        scale: 1.0,
-                        verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
-                        heightReference: Cesium.HeightReference.CLAMP_TO_GROUND
-                    },
-                    label: {
-                        text: `${loc.icon} ${loc.name}`,
-                        font: '16px sans-serif',
-                        fillColor: Cesium.Color.WHITE,
-                        outlineColor: Cesium.Color.BLACK,
-                        outlineWidth: 3,
-                        style: Cesium.LabelStyle.FILL_AND_OUTLINE,
-                        verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
-                        pixelOffset: new Cesium.Cartesian2(0, -60),
-                        heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
-                        disableDepthTestDistance: Number.POSITIVE_INFINITY
-                    },
-                    description: `
-                        <h3 style="font-size: 18px; margin-bottom: 10px;">${loc.icon} ${loc.name}</h3>
-                        <p style="margin-bottom: 8px;">${loc.description}</p>
-                        <p style="color: ${route.color}; font-weight: bold;">⏰ ${loc.time}</p>
-                    `
+                map = L.map('map2d', {
+                    center: [center.lat, center.lng],
+                    zoom: 10,
+                    zoomControl: true,
+                    scrollWheelZoom: true
                 });
 
-                cesiumEntities.push(entity);
-            });
+                console.log('Map object created');
 
-            // Add polyline connecting locations
-            const polyline = viewer.entities.add({
-                polyline: {
-                    positions: positions,
-                    width: 5,
-                    material: new Cesium.PolylineArrowMaterialProperty(route.cesiumColor),
-                    clampToGround: true
-                }
-            });
-            cesiumEntities.push(polyline);
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+                    maxZoom: 19
+                }).addTo(map);
 
-            // Fly to view all locations
-            viewer.flyTo(viewer.entities, {
-                duration: 2,
-                offset: new Cesium.HeadingPitchRange(0, Cesium.Math.toRadians(-45), 80000)
-            });
+                console.log('Tile layer added');
 
-            console.log('Cesium route shown');
-        }
+                // Force map to render
+                setTimeout(() => {
+                    map.invalidateSize();
+                    console.log('Map size invalidated');
+                }, 100);
 
-        // Create marker canvas
-        function createMarkerCanvas(number, color) {
-            const canvas = document.createElement('canvas');
-            canvas.width = 60;
-            canvas.height = 60;
-            const ctx = canvas.getContext('2d');
-
-            // Draw circle
-            ctx.beginPath();
-            ctx.arc(30, 30, 25, 0, 2 * Math.PI);
-            ctx.fillStyle = color;
-            ctx.fill();
-            ctx.strokeStyle = 'white';
-            ctx.lineWidth = 5;
-            ctx.stroke();
-
-            // Draw number
-            ctx.fillStyle = 'white';
-            ctx.font = 'bold 28px Arial';
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            ctx.fillText(number, 30, 30);
-
-            return canvas;
-        }
-
-        // Set view
-        function setView(type) {
-            if (!viewer) return;
-
-            const route = ROUTES[currentRoute];
-            const center = route.locations[Math.floor(route.locations.length / 2)];
-
-            switch (type) {
-                case 'bird':
-                    viewer.camera.flyTo({
-                        destination: Cesium.Cartesian3.fromDegrees(center.lng, center.lat, 100000),
-                        orientation: {
-                            heading: 0,
-                            pitch: Cesium.Math.toRadians(-90),
-                            roll: 0
-                        },
-                        duration: 2
-                    });
-                    break;
-                case 'tilt':
-                    viewer.camera.flyTo({
-                        destination: Cesium.Cartesian3.fromDegrees(center.lng, center.lat, 50000),
-                        orientation: {
-                            heading: Cesium.Math.toRadians(45),
-                            pitch: Cesium.Math.toRadians(-45),
-                            roll: 0
-                        },
-                        duration: 2
-                    });
-                    break;
-                case 'close':
-                    viewer.camera.flyTo({
-                        destination: Cesium.Cartesian3.fromDegrees(center.lng, center.lat, 20000),
-                        orientation: {
-                            heading: 0,
-                            pitch: Cesium.Math.toRadians(-30),
-                            roll: 0
-                        },
-                        duration: 2
-                    });
-                    break;
+                console.log('Map initialized successfully');
+                return true;
+            } catch (error) {
+                console.error('Map initialization error:', error);
+                return false;
             }
         }
 
-        // Reset view
-        function resetView() {
-            if (!viewer) return;
-            viewer.flyTo(viewer.entities, {
-                duration: 2,
-                offset: new Cesium.HeadingPitchRange(0, Cesium.Math.toRadians(-45), 80000)
-            });
-        }
-
-        // Fly through route
-        function flyThroughRoute() {
-            if (!viewer) return;
-
-            const route = ROUTES[currentRoute];
-            let index = 0;
-
-            function flyToNext() {
-                if (index >= route.locations.length) {
-                    return;
-                }
-
-                const loc = route.locations[index];
-                viewer.camera.flyTo({
-                    destination: Cesium.Cartesian3.fromDegrees(loc.lng, loc.lat, 5000),
-                    orientation: {
-                        heading: Cesium.Math.toRadians(45),
-                        pitch: Cesium.Math.toRadians(-30),
-                        roll: 0
-                    },
-                    duration: 3,
-                    complete: function() {
-                        index++;
-                        if (index < route.locations.length) {
-                            setTimeout(flyToNext, 2000);
-                        }
-                    }
-                });
+        // Show route on map
+        function showRoute(route) {
+            if (!map) {
+                console.error('Map not initialized');
+                return;
             }
 
-            flyToNext();
-        }
+            console.log('Showing route:', route.name);
 
-        // Initialize 2D Map
-        function init2DMap() {
-            console.log('Initializing 2D map...');
-            const route = ROUTES[currentRoute];
-            const center = route.locations[0];
-
-            map2d = L.map('map2d').setView([center.lat, center.lng], 10);
-
-            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                attribution: '© OpenStreetMap contributors',
-                maxZoom: 19
-            }).addTo(map2d);
-
-            console.log('2D Map initialized');
-        }
-
-        // Show route on 2D map
-        function show2DRoute(route) {
-            if (!map2d) return;
-
-            map2dMarkers.forEach(m => map2d.removeLayer(m));
-            map2dMarkers = [];
-            if (map2dPolyline) {
-                map2d.removeLayer(map2dPolyline);
+            // Clear old markers
+            markers.forEach(m => map.removeLayer(m));
+            markers = [];
+            if (polyline) {
+                map.removeLayer(polyline);
             }
 
             const latlngs = [];
 
+            // Add markers
             route.locations.forEach((loc, index) => {
                 const customIcon = L.divIcon({
                     className: 'custom-marker',
                     html: `
                         <div style="
                             background: ${route.color};
-                            width: 45px;
-                            height: 45px;
+                            width: 50px;
+                            height: 50px;
                             border-radius: 50%;
-                            border: 4px solid white;
+                            border: 5px solid white;
                             display: flex;
                             align-items: center;
                             justify-content: center;
                             font-weight: bold;
                             color: white;
-                            font-size: 20px;
-                            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+                            font-size: 22px;
+                            box-shadow: 0 6px 12px rgba(0,0,0,0.4);
                         ">${index + 1}</div>
                     `,
-                    iconSize: [45, 45],
-                    iconAnchor: [22.5, 22.5]
+                    iconSize: [50, 50],
+                    iconAnchor: [25, 25]
                 });
 
-                const marker = L.marker([loc.lat, loc.lng], { icon: customIcon }).addTo(map2d);
+                const marker = L.marker([loc.lat, loc.lng], { icon: customIcon }).addTo(map);
 
                 marker.bindPopup(`
-                    <div style="min-width: 220px;">
-                        <h3 style="font-weight: bold; font-size: 18px; margin-bottom: 8px; color: ${route.color};">
+                    <div style="min-width: 250px; padding: 5px;">
+                        <h3 style="font-weight: bold; font-size: 20px; margin-bottom: 10px; color: ${route.color};">
                             ${loc.icon} ${loc.name}
                         </h3>
-                        <p style="color: #666; margin-bottom: 8px; font-size: 14px;">${loc.description}</p>
-                        <p style="color: ${route.color}; font-weight: bold;">
+                        <p style="color: #666; margin-bottom: 10px; font-size: 15px; line-height: 1.5;">
+                            ${loc.description}
+                        </p>
+                        <p style="color: ${route.color}; font-weight: bold; font-size: 16px; margin-bottom: 5px;">
                             ⏰ ${loc.time}
                         </p>
+                        <p style="color: #999; font-size: 13px;">
+                            📍 ${loc.lat.toFixed(4)}, ${loc.lng.toFixed(4)}
+                        </p>
                     </div>
-                `);
+                `, {
+                    maxWidth: 300
+                });
 
-                map2dMarkers.push(marker);
+                markers.push(marker);
                 latlngs.push([loc.lat, loc.lng]);
             });
 
-            map2dPolyline = L.polyline(latlngs, {
-                color: route.color,
-                weight: 5,
-                opacity: 0.8,
-                dashArray: '10, 10'
-            }).addTo(map2d);
+            console.log('Added', markers.length, 'markers');
 
+            // Draw route line
+            polyline = L.polyline(latlngs, {
+                color: route.color,
+                weight: 6,
+                opacity: 0.8,
+                dashArray: '15, 10',
+                lineJoin: 'round',
+                lineCap: 'round'
+            }).addTo(map);
+
+            console.log('Polyline added');
+
+            // Fit bounds
             const bounds = L.latLngBounds(latlngs);
-            map2d.fitBounds(bounds, { padding: [50, 50] });
+            map.fitBounds(bounds, {
+                padding: [60, 60],
+                maxZoom: 12
+            });
+
+            console.log('Bounds fitted');
+
+            // Update statistics
+            const stats = calculateRouteStats(route);
+            document.getElementById('statLocations').textContent = route.locations.length;
+            document.getElementById('statDistance').textContent = stats.distance;
+            document.getElementById('statDuration').textContent = stats.duration;
         }
 
         // Update location cards
@@ -566,28 +388,31 @@
                 ? 'px-6 py-3 rounded-xl font-bold transition-all bg-amber-500 text-white shadow-lg scale-105'
                 : 'px-6 py-3 rounded-xl font-bold transition-all bg-white text-gray-700 hover:bg-gray-100';
 
-            showCesiumRoute(route);
-            show2DRoute(route);
+            showRoute(route);
             updateLocationCards(route);
         }
 
-        // Initialize everything
+        // Initialize on load
         window.addEventListener('load', function() {
-            console.log('Window loaded, initializing...');
+            console.log('=== Window loaded ===');
+            console.log('Leaflet available:', typeof L !== 'undefined');
 
-            try {
-                initCesium();
-                init2DMap();
+            setTimeout(() => {
+                try {
+                    const success = initMap();
 
-                const route = ROUTES[currentRoute];
-                showCesiumRoute(route);
-                show2DRoute(route);
-                updateLocationCards(route);
-
-                console.log('All initialized successfully!');
-            } catch (error) {
-                console.error('Initialization error:', error);
-            }
+                    if (success) {
+                        const route = ROUTES[currentRoute];
+                        showRoute(route);
+                        updateLocationCards(route);
+                        console.log('=== Initialization complete ===');
+                    } else {
+                        console.error('Map initialization failed');
+                    }
+                } catch (error) {
+                    console.error('Initialization error:', error);
+                }
+            }, 500);
         });
     </script>
 </body>

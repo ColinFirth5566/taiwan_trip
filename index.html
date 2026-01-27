@@ -6,15 +6,26 @@
     <title>🗺️ 台灣嘉義台南旅遊路線</title>
     <script src="https://cdn.tailwindcss.com"></script>
 
-    <!-- Leaflet for Maps -->
+    <!-- Leaflet for 2D Maps -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
+    <!-- Three.js for 3D -->
+    <script src="https://cdn.jsdelivr.net/npm/three@0.152.0/build/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.152.0/examples/js/controls/OrbitControls.js"></script>
+
     <style>
-        #map2d, #map3d {
+        #map2d, #canvas3d {
             width: 100%;
             height: 600px;
             border-radius: 1rem;
+        }
+        #canvas3d {
+            background: linear-gradient(to bottom, #1e40af, #3b82f6);
+            cursor: grab;
+        }
+        #canvas3d:active {
+            cursor: grabbing;
         }
         .location-card {
             transition: all 0.3s ease;
@@ -23,15 +34,22 @@
             transform: translateY(-5px);
             box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3);
         }
-        #map3d {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            font-size: 18px;
-            text-align: center;
-            padding: 40px;
+        .label-3d {
+            position: absolute;
+            background: rgba(255, 255, 255, 0.95);
+            padding: 6px 10px;
+            border-radius: 6px;
+            font-weight: bold;
+            font-size: 13px;
+            pointer-events: none;
+            white-space: nowrap;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            border: 2px solid;
+            transform: translate(-50%, -50%);
+            z-index: 10;
+        }
+        #canvas3d-container {
+            position: relative;
         }
     </style>
 </head>
@@ -63,18 +81,25 @@
                 </button>
             </div>
 
-            <!-- 3D Map Notice -->
+            <!-- 3D Visualization -->
             <div class="bg-white rounded-2xl shadow-2xl p-6 mb-8">
                 <h2 class="text-2xl font-bold text-gray-800 mb-4 flex items-center gap-2">
-                    <span>🌍</span>
-                    <span>3D 地圖視覺化</span>
+                    <span>🎨</span>
+                    <span>3D 台灣地圖視覺化</span>
+                    <span class="text-sm font-normal text-gray-500">(可拖動旋轉・滾輪縮放)</span>
                 </h2>
-                <div id="map3d">
-                    <div>
-                        <div style="font-size: 48px; margin-bottom: 20px;">🗺️</div>
-                        <h3 style="font-size: 24px; font-weight: bold; margin-bottom: 10px;">3D 地圖開發中</h3>
-                        <p style="opacity: 0.9;">目前使用下方的 2D 互動地圖查看路線</p>
-                        <p style="opacity: 0.9; margin-top: 10px;">包含完整的景點標記、路線規劃和詳細資訊</p>
+                <div id="canvas3d-container">
+                    <canvas id="canvas3d"></canvas>
+                </div>
+                <div class="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                    <div class="bg-blue-50 p-3 rounded-lg text-center">
+                        <span class="font-bold">🖱️ 左鍵拖動：</span>旋轉視角
+                    </div>
+                    <div class="bg-green-50 p-3 rounded-lg text-center">
+                        <span class="font-bold">🖱️ 右鍵拖動：</span>平移畫面
+                    </div>
+                    <div class="bg-purple-50 p-3 rounded-lg text-center">
+                        <span class="font-bold">🖱️ 滾輪：</span>縮放遠近
                     </div>
                 </div>
             </div>
@@ -83,19 +108,19 @@
             <div class="bg-white rounded-2xl shadow-2xl p-6 mb-8">
                 <h2 class="text-2xl font-bold text-gray-800 mb-4 flex items-center gap-2">
                     <span>📍</span>
-                    <span>互動式地圖路線</span>
+                    <span>2D 平面地圖</span>
                     <span class="text-sm font-normal text-gray-500">(點擊標記查看詳情)</span>
                 </h2>
                 <div id="map2d"></div>
                 <div class="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
                     <div class="bg-blue-50 p-3 rounded-lg text-center">
-                        <span class="font-bold">🖱️ 拖動地圖</span><br>移動查看不同區域
+                        <span class="font-bold">🖱️ 拖動地圖：</span>移動查看
                     </div>
                     <div class="bg-green-50 p-3 rounded-lg text-center">
-                        <span class="font-bold">🔍 滾輪縮放</span><br>放大查看細節
+                        <span class="font-bold">🔍 滾輪縮放：</span>放大細節
                     </div>
                     <div class="bg-purple-50 p-3 rounded-lg text-center">
-                        <span class="font-bold">📍 點擊標記</span><br>查看景點資訊
+                        <span class="font-bold">📍 點擊標記：</span>查看資訊
                     </div>
                 </div>
             </div>
@@ -126,15 +151,14 @@
 
             <!-- Footer -->
             <div class="text-center text-gray-500 text-sm">
-                <p>© 2024 台灣旅遊路線規劃 | Made with ❤️ using Leaflet.js & OpenStreetMap</p>
+                <p>© 2024 台灣旅遊路線規劃 | Made with ❤️ using Three.js & Leaflet.js</p>
                 <p class="mt-2">🗺️ 地圖資料來源：OpenStreetMap contributors</p>
             </div>
         </div>
     </div>
 
     <script>
-        console.log('Script started - checking libraries...');
-        console.log('Leaflet loaded:', typeof L !== 'undefined');
+        console.log('Script started');
 
         // Trip routes data
         const ROUTES = {
@@ -163,13 +187,308 @@
         };
 
         let currentRoute = 'route2';
+
+        // 2D Map variables
         let map = null;
         let markers = [];
         let polyline = null;
 
-        // Calculate distance between two points (Haversine formula)
+        // 3D Scene variables
+        let scene, camera, renderer, controls;
+        let markers3D = [];
+        let lines3D = [];
+        let labels3D = [];
+        let taiwanMesh = null;
+
+        // Taiwan outline coordinates (simplified)
+        const taiwanOutline = [
+            [25.3, 121.5], [25.1, 121.9], [24.8, 121.95], [24.5, 122.0], [24.0, 121.8],
+            [23.5, 121.5], [23.0, 121.2], [22.5, 120.9], [22.0, 120.7], [22.2, 120.3],
+            [22.6, 120.15], [23.0, 120.1], [23.4, 120.15], [23.8, 120.25], [24.2, 120.5],
+            [24.6, 120.8], [25.0, 121.2], [25.3, 121.5]
+        ];
+
+        // Convert lat/lng to 3D coordinates
+        function latLngTo3D(lat, lng, scale = 30) {
+            const centerLat = 23.5;
+            const centerLng = 121.0;
+            const x = (lng - centerLng) * scale;
+            const z = -(lat - centerLat) * scale;
+            return { x, y: 0, z };
+        }
+
+        // Initialize 3D Scene
+        function init3D() {
+            console.log('Initializing 3D scene...');
+
+            const container = document.getElementById('canvas3d-container');
+            const canvas = document.getElementById('canvas3d');
+
+            // Scene
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x1e40af);
+            scene.fog = new THREE.Fog(0x1e40af, 40, 120);
+
+            // Camera
+            camera = new THREE.PerspectiveCamera(
+                50,
+                canvas.clientWidth / canvas.clientHeight,
+                0.1,
+                1000
+            );
+            camera.position.set(0, 40, 60);
+
+            // Renderer
+            renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true });
+            renderer.setSize(canvas.clientWidth, canvas.clientHeight);
+            renderer.shadowMap.enabled = true;
+
+            // Lighting
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+            scene.add(ambientLight);
+
+            const sunLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            sunLight.position.set(20, 30, 20);
+            sunLight.castShadow = true;
+            scene.add(sunLight);
+
+            // OrbitControls
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+            controls.minDistance = 20;
+            controls.maxDistance = 120;
+            controls.maxPolarAngle = Math.PI / 2;
+
+            // Create Taiwan island
+            createTaiwanIsland();
+
+            // Handle resize
+            window.addEventListener('resize', () => {
+                camera.aspect = canvas.clientWidth / canvas.clientHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(canvas.clientWidth, canvas.clientHeight);
+            });
+
+            // Start animation
+            animate3D();
+
+            console.log('3D scene initialized');
+        }
+
+        // Create Taiwan island shape
+        function createTaiwanIsland() {
+            const shape = new THREE.Shape();
+
+            taiwanOutline.forEach((coord, index) => {
+                const pos = latLngTo3D(coord[0], coord[1]);
+                if (index === 0) {
+                    shape.moveTo(pos.x, pos.z);
+                } else {
+                    shape.lineTo(pos.x, pos.z);
+                }
+            });
+
+            const extrudeSettings = {
+                depth: 0.8,
+                bevelEnabled: true,
+                bevelThickness: 0.2,
+                bevelSize: 0.2,
+                bevelSegments: 2
+            };
+
+            const geometry = new THREE.ExtrudeGeometry(shape, extrudeSettings);
+            const material = new THREE.MeshPhongMaterial({
+                color: 0x2d6016,
+                shininess: 30
+            });
+
+            taiwanMesh = new THREE.Mesh(geometry, material);
+            taiwanMesh.rotation.x = -Math.PI / 2;
+            taiwanMesh.position.y = -0.5;
+            taiwanMesh.castShadow = true;
+            taiwanMesh.receiveShadow = true;
+            scene.add(taiwanMesh);
+
+            // Add ocean
+            const oceanGeometry = new THREE.CircleGeometry(80, 64);
+            const oceanMaterial = new THREE.MeshPhongMaterial({
+                color: 0x1e40af,
+                transparent: true,
+                opacity: 0.5
+            });
+            const ocean = new THREE.Mesh(oceanGeometry, oceanMaterial);
+            ocean.rotation.x = -Math.PI / 2;
+            ocean.position.y = -0.7;
+            ocean.receiveShadow = true;
+            scene.add(ocean);
+        }
+
+        // Create 3D route
+        function create3DRoute(route) {
+            console.log('Creating 3D route...');
+
+            // Clear old objects
+            markers3D.forEach(m => scene.remove(m));
+            lines3D.forEach(l => scene.remove(l));
+            labels3D.forEach(label => label.remove());
+            markers3D = [];
+            lines3D = [];
+            labels3D = [];
+
+            const color = new THREE.Color(route.color);
+            const container = document.getElementById('canvas3d-container');
+
+            // Create markers
+            route.locations.forEach((loc, index) => {
+                const pos = latLngTo3D(loc.lat, loc.lng);
+
+                // Sphere
+                const geometry = new THREE.SphereGeometry(1.2, 32, 32);
+                const material = new THREE.MeshPhongMaterial({
+                    color: color,
+                    emissive: color,
+                    emissiveIntensity: 0.5,
+                    shininess: 100
+                });
+                const sphere = new THREE.Mesh(geometry, material);
+                sphere.position.set(pos.x, 3, pos.z);
+                sphere.castShadow = true;
+
+                sphere.userData = {
+                    baseY: 3,
+                    index: index,
+                    location: loc
+                };
+
+                markers3D.push(sphere);
+                scene.add(sphere);
+
+                // Glow
+                const glowGeometry = new THREE.SphereGeometry(1.6, 32, 32);
+                const glowMaterial = new THREE.MeshBasicMaterial({
+                    color: color,
+                    transparent: true,
+                    opacity: 0.4
+                });
+                const glow = new THREE.Mesh(glowGeometry, glowMaterial);
+                sphere.add(glow);
+
+                // Pillar
+                const pillarGeometry = new THREE.CylinderGeometry(0.2, 0.2, 3.5, 16);
+                const pillarMaterial = new THREE.MeshPhongMaterial({
+                    color: color,
+                    transparent: true,
+                    opacity: 0.7
+                });
+                const pillar = new THREE.Mesh(pillarGeometry, pillarMaterial);
+                pillar.position.y = -1.75;
+                pillar.castShadow = true;
+                sphere.add(pillar);
+
+                // Label
+                const label = document.createElement('div');
+                label.className = 'label-3d';
+                label.style.borderColor = route.color;
+                label.style.color = route.color;
+                label.innerHTML = `<span style="font-size: 16px;">${loc.icon}</span> <span style="color: #333;">${index + 1}. ${loc.name}</span>`;
+                container.appendChild(label);
+                labels3D.push(label);
+                sphere.userData.label = label;
+            });
+
+            // Create paths
+            for (let i = 0; i < markers3D.length - 1; i++) {
+                const start = markers3D[i].position;
+                const end = markers3D[i + 1].position;
+
+                const points = [];
+                const segments = 30;
+
+                for (let j = 0; j <= segments; j++) {
+                    const t = j / segments;
+                    const x = start.x + (end.x - start.x) * t;
+                    const z = start.z + (end.z - start.z) * t;
+                    const dist = Math.sqrt((end.x - start.x) ** 2 + (end.z - start.z) ** 2);
+                    const y = 3 + Math.sin(t * Math.PI) * (dist * 0.2);
+                    points.push(new THREE.Vector3(x, y, z));
+                }
+
+                const curve = new THREE.CatmullRomCurve3(points);
+                const tubeGeometry = new THREE.TubeGeometry(curve, 64, 0.25, 12, false);
+                const tubeMaterial = new THREE.MeshPhongMaterial({
+                    color: color,
+                    transparent: true,
+                    opacity: 0.85
+                });
+                const tube = new THREE.Mesh(tubeGeometry, tubeMaterial);
+                tube.castShadow = true;
+                lines3D.push(tube);
+                scene.add(tube);
+
+                // Arrow
+                const arrowGeometry = new THREE.ConeGeometry(0.5, 1.0, 12);
+                const arrowMaterial = new THREE.MeshPhongMaterial({ color: color });
+                const arrow = new THREE.Mesh(arrowGeometry, arrowMaterial);
+                const endPos = points[points.length - 1];
+                const prevPos = points[points.length - 5];
+                arrow.position.copy(endPos);
+                arrow.lookAt(prevPos);
+                arrow.rotateX(Math.PI / 2);
+                arrow.castShadow = true;
+                lines3D.push(arrow);
+                scene.add(arrow);
+            }
+
+            console.log('3D route created');
+        }
+
+        // Update 3D labels
+        function update3DLabels() {
+            markers3D.forEach((marker) => {
+                const label = marker.userData.label;
+                if (!label) return;
+
+                const vector = new THREE.Vector3();
+                marker.getWorldPosition(vector);
+                vector.project(camera);
+
+                const canvas = document.getElementById('canvas3d');
+                const widthHalf = canvas.clientWidth / 2;
+                const heightHalf = canvas.clientHeight / 2;
+
+                const x = (vector.x * widthHalf) + widthHalf;
+                const y = -(vector.y * heightHalf) + heightHalf;
+
+                label.style.left = x + 'px';
+                label.style.top = (y - 50) + 'px';
+                label.style.display = (vector.z < 1 && vector.z > -1) ? 'block' : 'none';
+            });
+        }
+
+        // Animate 3D
+        function animate3D() {
+            requestAnimationFrame(animate3D);
+
+            controls.update();
+
+            const time = Date.now() * 0.001;
+            markers3D.forEach((marker, index) => {
+                marker.position.y = marker.userData.baseY + Math.sin(time * 0.5 + index) * 0.2;
+
+                if (marker.children[0]) {
+                    const scale = 1 + Math.sin(time * 2 + index) * 0.15;
+                    marker.children[0].scale.set(scale, scale, scale);
+                }
+            });
+
+            update3DLabels();
+            renderer.render(scene, camera);
+        }
+
+        // Calculate distance
         function calculateDistance(lat1, lon1, lat2, lon2) {
-            const R = 6371; // Earth radius in km
+            const R = 6371;
             const dLat = (lat2 - lat1) * Math.PI / 180;
             const dLon = (lon2 - lon1) * Math.PI / 180;
             const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
@@ -179,7 +498,7 @@
             return R * c;
         }
 
-        // Calculate route statistics
+        // Calculate route stats
         function calculateRouteStats(route) {
             let totalDistance = 0;
             for (let i = 0; i < route.locations.length - 1; i++) {
@@ -193,63 +512,38 @@
             };
         }
 
-        // Initialize map
+        // Initialize 2D map
         function initMap() {
-            console.log('Initializing map...');
+            console.log('Initializing 2D map...');
 
-            try {
-                const route = ROUTES[currentRoute];
-                const center = route.locations[0];
+            const route = ROUTES[currentRoute];
+            const center = route.locations[0];
 
-                map = L.map('map2d', {
-                    center: [center.lat, center.lng],
-                    zoom: 10,
-                    zoomControl: true,
-                    scrollWheelZoom: true
-                });
+            map = L.map('map2d', {
+                center: [center.lat, center.lng],
+                zoom: 10
+            });
 
-                console.log('Map object created');
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap contributors',
+                maxZoom: 19
+            }).addTo(map);
 
-                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                    attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-                    maxZoom: 19
-                }).addTo(map);
+            setTimeout(() => map.invalidateSize(), 100);
 
-                console.log('Tile layer added');
-
-                // Force map to render
-                setTimeout(() => {
-                    map.invalidateSize();
-                    console.log('Map size invalidated');
-                }, 100);
-
-                console.log('Map initialized successfully');
-                return true;
-            } catch (error) {
-                console.error('Map initialization error:', error);
-                return false;
-            }
+            console.log('2D map initialized');
         }
 
-        // Show route on map
-        function showRoute(route) {
-            if (!map) {
-                console.error('Map not initialized');
-                return;
-            }
+        // Show 2D route
+        function show2DRoute(route) {
+            if (!map) return;
 
-            console.log('Showing route:', route.name);
-
-            // Clear old markers
             markers.forEach(m => map.removeLayer(m));
             markers = [];
-            if (polyline) {
-                map.removeLayer(polyline);
-            }
+            if (polyline) map.removeLayer(polyline);
 
             const latlngs = [];
 
-            // Add markers
             route.locations.forEach((loc, index) => {
                 const customIcon = L.divIcon({
                     className: 'custom-marker',
@@ -290,38 +584,22 @@
                             📍 ${loc.lat.toFixed(4)}, ${loc.lng.toFixed(4)}
                         </p>
                     </div>
-                `, {
-                    maxWidth: 300
-                });
+                `);
 
                 markers.push(marker);
                 latlngs.push([loc.lat, loc.lng]);
             });
 
-            console.log('Added', markers.length, 'markers');
-
-            // Draw route line
             polyline = L.polyline(latlngs, {
                 color: route.color,
                 weight: 6,
                 opacity: 0.8,
-                dashArray: '15, 10',
-                lineJoin: 'round',
-                lineCap: 'round'
+                dashArray: '15, 10'
             }).addTo(map);
 
-            console.log('Polyline added');
+            map.fitBounds(L.latLngBounds(latlngs), { padding: [60, 60], maxZoom: 12 });
 
-            // Fit bounds
-            const bounds = L.latLngBounds(latlngs);
-            map.fitBounds(bounds, {
-                padding: [60, 60],
-                maxZoom: 12
-            });
-
-            console.log('Bounds fitted');
-
-            // Update statistics
+            // Update stats
             const stats = calculateRouteStats(route);
             document.getElementById('statLocations').textContent = route.locations.length;
             document.getElementById('statDistance').textContent = stats.distance;
@@ -388,30 +666,25 @@
                 ? 'px-6 py-3 rounded-xl font-bold transition-all bg-amber-500 text-white shadow-lg scale-105'
                 : 'px-6 py-3 rounded-xl font-bold transition-all bg-white text-gray-700 hover:bg-gray-100';
 
-            showRoute(route);
+            create3DRoute(route);
+            show2DRoute(route);
             updateLocationCards(route);
         }
 
-        // Initialize on load
+        // Initialize
         window.addEventListener('load', function() {
-            console.log('=== Window loaded ===');
-            console.log('Leaflet available:', typeof L !== 'undefined');
+            console.log('Initializing...');
 
             setTimeout(() => {
-                try {
-                    const success = initMap();
+                init3D();
+                initMap();
 
-                    if (success) {
-                        const route = ROUTES[currentRoute];
-                        showRoute(route);
-                        updateLocationCards(route);
-                        console.log('=== Initialization complete ===');
-                    } else {
-                        console.error('Map initialization failed');
-                    }
-                } catch (error) {
-                    console.error('Initialization error:', error);
-                }
+                const route = ROUTES[currentRoute];
+                create3DRoute(route);
+                show2DRoute(route);
+                updateLocationCards(route);
+
+                console.log('Initialization complete');
             }, 500);
         });
     </script>

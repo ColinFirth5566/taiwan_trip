@@ -84,6 +84,22 @@
             width: 100%;
             height: 600px;
             border-radius: 12px;
+            min-height: 400px;
+        }
+
+        @media (max-width: 768px) {
+            h1 {
+                font-size: 1.8rem;
+            }
+
+            #map {
+                height: 400px;
+            }
+
+            .route-btn {
+                padding: 12px 20px;
+                font-size: 16px;
+            }
         }
 
         .info-cards {
@@ -225,13 +241,20 @@
 
                 // Add tile layer
                 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                    attribution: '© OpenStreetMap'
+                    attribution: '© OpenStreetMap',
+                    maxZoom: 18
                 }).addTo(map);
                 console.log('✓ Tiles added');
 
                 // Show map container
                 document.getElementById('mapContainer').style.display = 'block';
                 document.getElementById('status').style.display = 'none';
+
+                // Force map to recalculate size
+                setTimeout(() => {
+                    map.invalidateSize();
+                    console.log('✓ Map size invalidated');
+                }, 100);
 
                 // Show route
                 showRoute(route);
@@ -364,10 +387,21 @@
         }
 
         // Start when page loads
-        window.addEventListener('load', () => {
-            console.log('Page loaded');
-            setTimeout(init, 1000);
-        });
+        function waitForLeaflet() {
+            if (typeof L !== 'undefined') {
+                console.log('Leaflet ready, initializing...');
+                init();
+            } else {
+                console.log('Waiting for Leaflet...');
+                setTimeout(waitForLeaflet, 100);
+            }
+        }
+
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', waitForLeaflet);
+        } else {
+            waitForLeaflet();
+        }
     </script>
 </body>
 </html>

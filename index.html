@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🗺️ 台灣嘉義台南旅遊路線</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <style>
+        #map {
+            width: 100%;
+            height: 500px;
+            border-radius: 1rem;
+        }
+        #canvas3d {
+            width: 100%;
+            height: 500px;
+            border-radius: 1rem;
+            background: linear-gradient(to bottom, #1e3a8a, #3b82f6);
+        }
+        .location-card {
+            transition: all 0.3s ease;
+        }
+        .location-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3);
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50">
+    <div id="root"></div>
+
+    <script type="module">
+        // Trip routes data with real coordinates
+        const ROUTES = {
+            route2: {
+                name: '路線二：嘉義文化之旅',
+                color: '#10b981',
+                locations: [
+                    {
+                        name: '故宮南院',
+                        description: '國立故宮博物院南部院區，亞洲藝術文化博物館',
+                        lat: 23.4694,
+                        lng: 120.3394,
+                        icon: '🏛️',
+                        time: '09:00-11:00'
+                    },
+                    {
+                        name: '布袋漁港',
+                        description: '新鮮海產、觀光漁港、海鮮市場',
+                        lat: 23.3778,
+                        lng: 120.1647,
+                        icon: '⚓',
+                        time: '11:30-12:30'
+                    },
+                    {
+                        name: '英義大利生麵',
+                        description: '布袋在地美食，義式料理',
+                        lat: 23.3765,
+                        lng: 120.1655,
+                        icon: '🍝',
+                        time: '12:30-13:30'
+                    },
+                    {
+                        name: '高跟鞋教堂',
+                        description: '浪漫藝術裝置，IG打卡熱點',
+                        lat: 23.3625,
+                        lng: 120.1394,
+                        icon: '👠',
+                        time: '14:00-15:00'
+                    },
+                    {
+                        name: '新港香藝文化園區',
+                        description: '香藝文化、手作體驗',
+                        lat: 23.5547,
+                        lng: 120.3478,
+                        icon: '🕯️',
+                        time: '15:30-16:30'
+                    },
+                    {
+                        name: '新港老街',
+                        description: '傳統老街、在地小吃、文化巡禮',
+                        lat: 23.5569,
+                        lng: 120.3456,
+                        icon: '🏮',
+                        time: '17:00-18:30'
+                    }
+                ]
+            },
+            day1: {
+                name: '第一天：台南美食之旅',
+                color: '#f59e0b',
+                locations: [
+                    {
+                        name: '南鯤鯓代天宮',
+                        description: '台灣王爺總廟，國定古蹟',
+                        lat: 23.2861,
+                        lng: 120.0758,
+                        icon: '⛩️',
+                        time: '09:00-11:00'
+                    },
+                    {
+                        name: '阿樂活海鮮',
+                        description: '新鮮海產料理，在地推薦',
+                        lat: 23.1408,
+                        lng: 120.1472,
+                        icon: '🦐',
+                        time: '12:00-13:30'
+                    },
+                    {
+                        name: '飯店 Check-in',
+                        description: '休息放鬆時光',
+                        lat: 22.9908,
+                        lng: 120.2133,
+                        icon: '🏨',
+                        time: '14:00-17:00'
+                    },
+                    {
+                        name: '國華街夜市',
+                        description: '台南必逛夜市，美食天堂',
+                        lat: 22.9974,
+                        lng: 120.1973,
+                        icon: '🌃',
+                        time: '18:00-21:00'
+                    }
+                ]
+            }
+        };
+
+        // Three.js 3D Path Visualization
+        class Path3D {
+            constructor(containerId) {
+                this.container = document.getElementById(containerId);
+                this.scene = new THREE.Scene();
+                this.camera = new THREE.PerspectiveCamera(75, this.container.clientWidth / this.container.clientHeight, 0.1, 1000);
+                this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+                this.renderer.setSize(this.container.clientWidth, this.container.clientHeight);
+                this.container.appendChild(this.renderer.domElement);
+
+                // Lighting
+                const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+                this.scene.add(ambientLight);
+                const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+                directionalLight.position.set(10, 10, 5);
+                this.scene.add(directionalLight);
+
+                this.camera.position.z = 15;
+                this.camera.position.y = 5;
+                this.camera.lookAt(0, 0, 0);
+
+                this.locationMarkers = [];
+                this.pathLines = [];
+
+                // Animation
+                this.animate = this.animate.bind(this);
+                this.animate();
+
+                // Handle resize
+                window.addEventListener('resize', () => {
+                    this.camera.aspect = this.container.clientWidth / this.container.clientHeight;
+                    this.camera.updateProjectionMatrix();
+                    this.renderer.setSize(this.container.clientWidth, this.container.clientHeight);
+                });
+            }
+
+            clearScene() {
+                this.locationMarkers.forEach(marker => this.scene.remove(marker));
+                this.pathLines.forEach(line => this.scene.remove(line));
+                this.locationMarkers = [];
+                this.pathLines = [];
+            }
+
+            createPath(locations, color) {
+                this.clearScene();
+
+                // Create location markers
+                locations.forEach((loc, index) => {
+                    // Sphere for location
+                    const geometry = new THREE.SphereGeometry(0.5, 32, 32);
+                    const material = new THREE.MeshPhongMaterial({
+                        color: color,
+                        emissive: color,
+                        emissiveIntensity: 0.3
+                    });
+                    const sphere = new THREE.Mesh(geometry, material);
+
+                    // Position based on index (spread along path)
+                    const angle = (index / locations.length) * Math.PI * 2;
+                    const radius = 8;
+                    sphere.position.x = Math.cos(angle) * radius;
+                    sphere.position.z = Math.sin(angle) * radius;
+                    sphere.position.y = Math.sin(index * 0.5) * 2;
+
+                    sphere.userData = { index, name: loc.name };
+                    this.locationMarkers.push(sphere);
+                    this.scene.add(sphere);
+
+                    // Add glow effect
+                    const glowGeometry = new THREE.SphereGeometry(0.7, 32, 32);
+                    const glowMaterial = new THREE.MeshBasicMaterial({
+                        color: color,
+                        transparent: true,
+                        opacity: 0.3
+                    });
+                    const glow = new THREE.Mesh(glowGeometry, glowMaterial);
+                    sphere.add(glow);
+                });
+
+                // Create path lines
+                for (let i = 0; i < this.locationMarkers.length - 1; i++) {
+                    const start = this.locationMarkers[i].position;
+                    const end = this.locationMarkers[i + 1].position;
+
+                    const points = [];
+                    points.push(new THREE.Vector3(start.x, start.y, start.z));
+
+                    // Add curve points
+                    for (let t = 0.1; t < 1; t += 0.1) {
+                        const x = start.x + (end.x - start.x) * t;
+                        const y = start.y + (end.y - start.y) * t + Math.sin(t * Math.PI) * 1;
+                        const z = start.z + (end.z - start.z) * t;
+                        points.push(new THREE.Vector3(x, y, z));
+                    }
+
+                    points.push(new THREE.Vector3(end.x, end.y, end.z));
+
+                    const curve = new THREE.CatmullRomCurve3(points);
+                    const tubeGeometry = new THREE.TubeGeometry(curve, 64, 0.1, 8, false);
+                    const tubeMaterial = new THREE.MeshPhongMaterial({
+                        color: color,
+                        transparent: true,
+                        opacity: 0.8
+                    });
+                    const tube = new THREE.Mesh(tubeGeometry, tubeMaterial);
+                    this.pathLines.push(tube);
+                    this.scene.add(tube);
+                }
+            }
+
+            animate() {
+                requestAnimationFrame(this.animate);
+
+                // Rotate scene slowly
+                this.scene.rotation.y += 0.002;
+
+                // Animate markers
+                this.locationMarkers.forEach((marker, index) => {
+                    marker.rotation.y += 0.02;
+                    marker.position.y += Math.sin(Date.now() * 0.001 + index) * 0.002;
+                });
+
+                this.renderer.render(this.scene, this.camera);
+            }
+        }
+
+        // Google Maps Integration
+        class TripMap {
+            constructor() {
+                this.map = null;
+                this.markers = [];
+                this.path = null;
+                this.directionsService = null;
+                this.directionsRenderer = null;
+            }
+
+            async initialize(containerId, center) {
+                // Load Google Maps
+                if (!window.google) {
+                    await this.loadGoogleMaps();
+                }
+
+                this.map = new google.maps.Map(document.getElementById(containerId), {
+                    zoom: 10,
+                    center: center,
+                    styles: [
+                        {
+                            featureType: "poi",
+                            elementType: "labels",
+                            stylers: [{ visibility: "off" }]
+                        }
+                    ]
+                });
+
+                this.directionsService = new google.maps.DirectionsService();
+                this.directionsRenderer = new google.maps.DirectionsRenderer({
+                    map: this.map,
+                    suppressMarkers: true,
+                    polylineOptions: {
+                        strokeColor: '#3b82f6',
+                        strokeWeight: 5,
+                        strokeOpacity: 0.8
+                    }
+                });
+            }
+
+            async loadGoogleMaps() {
+                return new Promise((resolve, reject) => {
+                    const script = document.createElement('script');
+                    script.src = `https://maps.googleapis.com/maps/api/js?key=YOUR_API_KEY&callback=initMap`;
+                    script.async = true;
+                    script.defer = true;
+                    window.initMap = resolve;
+                    document.head.appendChild(script);
+                });
+            }
+
+            clearMarkers() {
+                this.markers.forEach(marker => marker.setMap(null));
+                this.markers = [];
+                if (this.directionsRenderer) {
+                    this.directionsRenderer.setDirections({ routes: [] });
+                }
+            }
+
+            showRoute(locations, color) {
+                this.clearMarkers();
+
+                // Add markers for each location
+                locations.forEach((loc, index) => {
+                    const marker = new google.maps.Marker({
+                        position: { lat: loc.lat, lng: loc.lng },
+                        map: this.map,
+                        label: {
+                            text: `${index + 1}`,
+                            color: 'white',
+                            fontWeight: 'bold'
+                        },
+                        title: loc.name,
+                        animation: google.maps.Animation.DROP,
+                        icon: {
+                            path: google.maps.SymbolPath.CIRCLE,
+                            scale: 12,
+                            fillColor: color,
+                            fillOpacity: 1,
+                            strokeColor: 'white',
+                            strokeWeight: 3
+                        }
+                    });
+
+                    const infoWindow = new google.maps.InfoWindow({
+                        content: `
+                            <div style="padding: 10px;">
+                                <h3 style="font-weight: bold; font-size: 16px; margin-bottom: 5px;">
+                                    ${loc.icon} ${loc.name}
+                                </h3>
+                                <p style="color: #666; margin-bottom: 5px;">${loc.description}</p>
+                                <p style="color: #3b82f6; font-weight: bold;">⏰ ${loc.time}</p>
+                            </div>
+                        `
+                    });
+
+                    marker.addListener('click', () => {
+                        infoWindow.open(this.map, marker);
+                    });
+
+                    this.markers.push(marker);
+                });
+
+                // Draw route
+                if (locations.length > 1) {
+                    const waypoints = locations.slice(1, -1).map(loc => ({
+                        location: { lat: loc.lat, lng: loc.lng },
+                        stopover: true
+                    }));
+
+                    this.directionsService.route({
+                        origin: { lat: locations[0].lat, lng: locations[0].lng },
+                        destination: { lat: locations[locations.length - 1].lat, lng: locations[locations.length - 1].lng },
+                        waypoints: waypoints,
+                        travelMode: google.maps.TravelMode.DRIVING
+                    }, (result, status) => {
+                        if (status === 'OK') {
+                            this.directionsRenderer.setDirections(result);
+                        }
+                    });
+                }
+
+                // Fit bounds
+                const bounds = new google.maps.LatLngBounds();
+                locations.forEach(loc => bounds.extend({ lat: loc.lat, lng: loc.lng }));
+                this.map.fitBounds(bounds);
+            }
+        }
+
+        // Main App Component
+        class TripApp {
+            constructor() {
+                this.currentRoute = 'route2';
+                this.path3D = null;
+                this.tripMap = null;
+                this.render();
+            }
+
+            async init() {
+                // Initialize 3D scene
+                this.path3D = new Path3D('canvas3d');
+
+                // Initialize Google Maps (simplified without API key)
+                this.initSimpleMap();
+
+                // Show initial route
+                this.showRoute(this.currentRoute);
+            }
+
+            initSimpleMap() {
+                // Since we don't have a real API key, create a placeholder
+                const mapContainer = document.getElementById('map');
+                const route = ROUTES[this.currentRoute];
+
+                // Create a visual representation
+                mapContainer.innerHTML = `
+                    <div class="w-full h-full bg-blue-100 rounded-lg flex items-center justify-center relative overflow-hidden">
+                        <div class="absolute inset-0 opacity-20">
+                            <svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
+                                <defs>
+                                    <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+                                        <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#3b82f6" stroke-width="1"/>
+                                    </pattern>
+                                </defs>
+                                <rect width="100%" height="100%" fill="url(#grid)" />
+                            </svg>
+                        </div>
+                        <div class="text-center z-10">
+                            <p class="text-2xl mb-2">🗺️</p>
+                            <p class="text-gray-600 font-semibold">Google Maps 路線圖</p>
+                            <p class="text-sm text-gray-500 mt-2">包含 ${route.locations.length} 個景點</p>
+                            <p class="text-xs text-gray-400 mt-4">（需要 Google Maps API Key 才能顯示實際地圖）</p>
+                        </div>
+                    </div>
+                `;
+            }
+
+            showRoute(routeKey) {
+                this.currentRoute = routeKey;
+                const route = ROUTES[routeKey];
+
+                // Update 3D visualization
+                if (this.path3D) {
+                    this.path3D.createPath(route.locations, route.color);
+                }
+
+                // Update map placeholder
+                this.initSimpleMap();
+
+                this.render();
+            }
+
+            render() {
+                const route = ROUTES[this.currentRoute];
+
+                const html = `
+                    <div class="min-h-screen p-4 md:p-8">
+                        <div class="max-w-7xl mx-auto">
+                            <!-- Header -->
+                            <div class="text-center mb-8">
+                                <h1 class="text-4xl md:text-5xl font-bold text-gray-800 mb-2">
+                                    🗺️ 台灣嘉義台南旅遊路線
+                                </h1>
+                                <p class="text-gray-600 text-lg">探索南台灣的美食與文化之旅</p>
+                            </div>
+
+                            <!-- Route Selector -->
+                            <div class="flex gap-4 justify-center mb-8 flex-wrap">
+                                <button
+                                    onclick="app.showRoute('route2')"
+                                    class="px-6 py-3 rounded-xl font-bold transition-all ${
+                                        this.currentRoute === 'route2'
+                                        ? 'bg-green-500 text-white shadow-lg scale-105'
+                                        : 'bg-white text-gray-700 hover:bg-gray-100'
+                                    }">
+                                    路線二：嘉義文化之旅
+                                </button>
+                                <button
+                                    onclick="app.showRoute('day1')"
+                                    class="px-6 py-3 rounded-xl font-bold transition-all ${
+                                        this.currentRoute === 'day1'
+                                        ? 'bg-amber-500 text-white shadow-lg scale-105'
+                                        : 'bg-white text-gray-700 hover:bg-gray-100'
+                                    }">
+                                    第一天：台南美食之旅
+                                </button>
+                            </div>
+
+                            <!-- 3D Visualization -->
+                            <div class="bg-white rounded-2xl shadow-2xl p-6 mb-8">
+                                <h2 class="text-2xl font-bold text-gray-800 mb-4">🎨 3D 路線視覺化</h2>
+                                <div id="canvas3d"></div>
+                                <p class="text-center text-gray-500 text-sm mt-4">
+                                    🖱️ 3D 路徑會自動旋轉展示所有景點
+                                </p>
+                            </div>
+
+                            <!-- Google Maps -->
+                            <div class="bg-white rounded-2xl shadow-2xl p-6 mb-8">
+                                <h2 class="text-2xl font-bold text-gray-800 mb-4">📍 Google Maps 路線</h2>
+                                <div id="map"></div>
+                            </div>
+
+                            <!-- Location Cards -->
+                            <div class="bg-white rounded-2xl shadow-2xl p-6 mb-8">
+                                <h2 class="text-2xl font-bold text-gray-800 mb-6">
+                                    ${route.name}
+                                </h2>
+                                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                    ${route.locations.map((loc, index) => `
+                                        <div class="location-card bg-gradient-to-br from-white to-gray-50 rounded-xl p-6 border-2 border-gray-200 shadow-lg">
+                                            <div class="flex items-start gap-4">
+                                                <div class="text-5xl">${loc.icon}</div>
+                                                <div class="flex-1">
+                                                    <div class="flex items-center gap-2 mb-2">
+                                                        <span class="bg-${this.currentRoute === 'route2' ? 'green' : 'amber'}-500 text-white font-bold px-3 py-1 rounded-full text-sm">
+                                                            ${index + 1}
+                                                        </span>
+                                                        <h3 class="text-xl font-bold text-gray-800">
+                                                            ${loc.name}
+                                                        </h3>
+                                                    </div>
+                                                    <p class="text-gray-600 text-sm mb-3">
+                                                        ${loc.description}
+                                                    </p>
+                                                    <div class="flex items-center text-blue-600 font-semibold">
+                                                        <span class="mr-2">⏰</span>
+                                                        ${loc.time}
+                                                    </div>
+                                                    <div class="text-xs text-gray-400 mt-2">
+                                                        📍 ${loc.lat.toFixed(4)}, ${loc.lng.toFixed(4)}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    `).join('')}
+                                </div>
+                            </div>
+
+                            <!-- Footer -->
+                            <div class="text-center text-gray-500 text-sm">
+                                <p>© 2024 台灣旅遊路線規劃 | Made with ❤️ using Three.js & Google Maps</p>
+                            </div>
+                        </div>
+                    </div>
+                `;
+
+                document.getElementById('root').innerHTML = html;
+
+                // Initialize after render
+                setTimeout(() => this.init(), 100);
+            }
+        }
+
+        // Initialize app
+        const app = new TripApp();
+        window.app = app;
+    </script>
+</body>
+</html>

@@ -568,9 +568,9 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <!-- Leaflet Control Geocoder JS -->
     <script src="https://unpkg.com/leaflet-control-geocoder@2.4.0/dist/Control.Geocoder.js"></script>
-    <!-- Docx library for Word export -->
-    <script src="https://unpkg.com/docx@8.5.0/build/index.js"></script>
+    <!-- HTML to Word export -->
     <script src="https://unpkg.com/file-saver@2.0.5/dist/FileSaver.min.js"></script>
+    <script src="https://unpkg.com/html-docx-js@0.3.1/dist/html-docx.js"></script>
 
     <script>
         console.log('=== Script Started ===');
@@ -1342,12 +1342,8 @@
         }
 
         // Export to Word document
-        async function exportToWord() {
+        function exportToWord() {
             try {
-                const { Document, Paragraph, TextRun, Table, TableCell, TableRow,
-                        AlignmentType, WidthType, BorderStyle, HeadingLevel,
-                        convertInchesToTwip } = docx;
-
                 const route = ROUTES[currentRoute];
                 const allLocations = [...route.locations, ...customLocations];
 
@@ -1370,290 +1366,222 @@
                     day: 'numeric'
                 });
 
-                // Create document sections
-                const sections = [];
+                // Create HTML content
+                let htmlContent = `
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>${route.name} - 行程規劃報告</title>
+    <style>
+        body {
+            font-family: "Microsoft YaHei", "微軟正黑體", Arial, sans-serif;
+            line-height: 1.6;
+            max-width: 800px;
+            margin: 40px auto;
+            padding: 20px;
+        }
+        h1 {
+            text-align: center;
+            color: #333;
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+        h2 {
+            color: #667eea;
+            font-size: 22px;
+            margin-top: 30px;
+            margin-bottom: 15px;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 5px;
+        }
+        .subtitle {
+            text-align: center;
+            color: #666;
+            font-size: 20px;
+            margin-bottom: 5px;
+        }
+        .date {
+            text-align: center;
+            color: #999;
+            font-size: 14px;
+            margin-bottom: 30px;
+        }
+        .summary {
+            background: #f5f5f5;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+        .summary p {
+            margin: 10px 0;
+            font-size: 16px;
+        }
+        .summary strong {
+            color: #667eea;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+        th {
+            background: #667eea;
+            color: white;
+            padding: 12px;
+            text-align: left;
+            font-weight: bold;
+        }
+        td {
+            padding: 10px 12px;
+            border: 1px solid #ddd;
+        }
+        tr:nth-child(even) {
+            background: #f9f9f9;
+        }
+        .custom-location {
+            background: #fff3cd !important;
+        }
+        ul {
+            list-style-type: none;
+            padding-left: 0;
+        }
+        li {
+            margin: 10px 0;
+            padding-left: 25px;
+            position: relative;
+        }
+        li:before {
+            content: "•";
+            color: #667eea;
+            font-weight: bold;
+            position: absolute;
+            left: 5px;
+        }
+        .footer {
+            text-align: center;
+            margin-top: 50px;
+            padding-top: 20px;
+            border-top: 1px solid #ddd;
+            color: #999;
+            font-size: 14px;
+        }
+        .footer .wish {
+            font-size: 18px;
+            color: #667eea;
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h1>🗺️ 台灣旅遊行程規劃報告</h1>
+    <div class="subtitle">${route.name}</div>
+    <div class="date">製作日期：${dateStr}</div>
 
-                // Title
-                sections.push(
-                    new Paragraph({
-                        text: "🗺️ 台灣旅遊行程規劃報告",
-                        heading: HeadingLevel.TITLE,
-                        alignment: AlignmentType.CENTER,
-                        spacing: { after: 300 }
-                    })
-                );
+    <h2>📊 行程摘要</h2>
+    <div class="summary">
+        <p><strong>總景點數：</strong>${allLocations.length} 個</p>
+        <p><strong>總距離：</strong>${totalDistance.toFixed(1)} 公里</p>
+        <p><strong>預估行車時間：</strong>${estimateTime(totalDistance)}</p>
+    </div>
 
-                // Route name
-                sections.push(
-                    new Paragraph({
-                        text: route.name,
-                        heading: HeadingLevel.HEADING_1,
-                        alignment: AlignmentType.CENTER,
-                        spacing: { after: 200 }
-                    })
-                );
+    <h2>🗓️ 詳細行程</h2>
+    <table>
+        <thead>
+            <tr>
+                <th style="width: 8%;">順序</th>
+                <th style="width: 25%;">景點名稱</th>
+                <th style="width: 37%;">描述</th>
+                <th style="width: 15%;">時間</th>
+                <th style="width: 15%;">備註</th>
+            </tr>
+        </thead>
+        <tbody>
+`;
 
-                // Date
-                sections.push(
-                    new Paragraph({
-                        text: `製作日期：${dateStr}`,
-                        alignment: AlignmentType.CENTER,
-                        spacing: { after: 400 }
-                    })
-                );
-
-                // Summary section
-                sections.push(
-                    new Paragraph({
-                        text: "📊 行程摘要",
-                        heading: HeadingLevel.HEADING_2,
-                        spacing: { before: 300, after: 200 }
-                    })
-                );
-
-                sections.push(
-                    new Paragraph({
-                        children: [
-                            new TextRun({ text: "總景點數：", bold: true }),
-                            new TextRun({ text: `${allLocations.length} 個` })
-                        ],
-                        spacing: { after: 100 }
-                    })
-                );
-
-                sections.push(
-                    new Paragraph({
-                        children: [
-                            new TextRun({ text: "總距離：", bold: true }),
-                            new TextRun({ text: `${totalDistance.toFixed(1)} 公里` })
-                        ],
-                        spacing: { after: 100 }
-                    })
-                );
-
-                sections.push(
-                    new Paragraph({
-                        children: [
-                            new TextRun({ text: "預估行車時間：", bold: true }),
-                            new TextRun({ text: estimateTime(totalDistance) })
-                        ],
-                        spacing: { after: 300 }
-                    })
-                );
-
-                // Itinerary section
-                sections.push(
-                    new Paragraph({
-                        text: "🗓️ 詳細行程",
-                        heading: HeadingLevel.HEADING_2,
-                        spacing: { before: 300, after: 200 }
-                    })
-                );
-
-                // Create itinerary table
-                const tableRows = [];
-
-                // Header row
-                tableRows.push(
-                    new TableRow({
-                        children: [
-                            new TableCell({
-                                children: [new Paragraph({ text: "順序", bold: true, alignment: AlignmentType.CENTER })],
-                                width: { size: 10, type: WidthType.PERCENTAGE }
-                            }),
-                            new TableCell({
-                                children: [new Paragraph({ text: "景點名稱", bold: true, alignment: AlignmentType.CENTER })],
-                                width: { size: 25, type: WidthType.PERCENTAGE }
-                            }),
-                            new TableCell({
-                                children: [new Paragraph({ text: "描述", bold: true, alignment: AlignmentType.CENTER })],
-                                width: { size: 35, type: WidthType.PERCENTAGE }
-                            }),
-                            new TableCell({
-                                children: [new Paragraph({ text: "時間", bold: true, alignment: AlignmentType.CENTER })],
-                                width: { size: 15, type: WidthType.PERCENTAGE }
-                            }),
-                            new TableCell({
-                                children: [new Paragraph({ text: "備註", bold: true, alignment: AlignmentType.CENTER })],
-                                width: { size: 15, type: WidthType.PERCENTAGE }
-                            })
-                        ]
-                    })
-                );
-
-                // Data rows
+                // Add location rows
                 allLocations.forEach((loc, i) => {
                     const note = loc.custom ? '自訂景點' : '推薦景點';
-                    tableRows.push(
-                        new TableRow({
-                            children: [
-                                new TableCell({
-                                    children: [new Paragraph({ text: `${i + 1}`, alignment: AlignmentType.CENTER })]
-                                }),
-                                new TableCell({
-                                    children: [new Paragraph({ text: `${loc.icon} ${loc.name}` })]
-                                }),
-                                new TableCell({
-                                    children: [new Paragraph({ text: loc.desc })]
-                                }),
-                                new TableCell({
-                                    children: [new Paragraph({ text: loc.time, alignment: AlignmentType.CENTER })]
-                                }),
-                                new TableCell({
-                                    children: [new Paragraph({ text: note, alignment: AlignmentType.CENTER })]
-                                })
-                            ]
-                        })
-                    );
+                    const rowClass = loc.custom ? 'custom-location' : '';
+                    htmlContent += `
+            <tr class="${rowClass}">
+                <td style="text-align: center;">${i + 1}</td>
+                <td>${loc.icon} ${loc.name}</td>
+                <td>${loc.desc}</td>
+                <td style="text-align: center;">${loc.time}</td>
+                <td style="text-align: center;">${note}</td>
+            </tr>
+`;
                 });
 
-                const table = new Table({
-                    rows: tableRows,
-                    width: { size: 100, type: WidthType.PERCENTAGE }
-                });
+                htmlContent += `
+        </tbody>
+    </table>
 
-                sections.push(table);
+    <h2>🚗 路程資訊</h2>
+    <table>
+        <thead>
+            <tr>
+                <th style="width: 35%;">起點</th>
+                <th style="width: 35%;">終點</th>
+                <th style="width: 15%;">距離</th>
+                <th style="width: 15%;">預估時間</th>
+            </tr>
+        </thead>
+        <tbody>
+`;
 
-                // Distance information section
-                sections.push(
-                    new Paragraph({
-                        text: "🚗 路程資訊",
-                        heading: HeadingLevel.HEADING_2,
-                        spacing: { before: 400, after: 200 }
-                    })
-                );
-
-                const distanceRows = [];
-
-                // Header
-                distanceRows.push(
-                    new TableRow({
-                        children: [
-                            new TableCell({
-                                children: [new Paragraph({ text: "起點", bold: true, alignment: AlignmentType.CENTER })],
-                                width: { size: 30, type: WidthType.PERCENTAGE }
-                            }),
-                            new TableCell({
-                                children: [new Paragraph({ text: "終點", bold: true, alignment: AlignmentType.CENTER })],
-                                width: { size: 30, type: WidthType.PERCENTAGE }
-                            }),
-                            new TableCell({
-                                children: [new Paragraph({ text: "距離", bold: true, alignment: AlignmentType.CENTER })],
-                                width: { size: 20, type: WidthType.PERCENTAGE }
-                            }),
-                            new TableCell({
-                                children: [new Paragraph({ text: "預估時間", bold: true, alignment: AlignmentType.CENTER })],
-                                width: { size: 20, type: WidthType.PERCENTAGE }
-                            })
-                        ]
-                    })
-                );
-
-                // Data rows
+                // Add distance rows
                 for (let i = 0; i < allLocations.length - 1; i++) {
                     const start = allLocations[i];
                     const end = allLocations[i + 1];
                     const distance = calculateDistance(start.lat, start.lng, end.lat, end.lng);
 
-                    distanceRows.push(
-                        new TableRow({
-                            children: [
-                                new TableCell({
-                                    children: [new Paragraph({ text: `${start.icon} ${start.name}` })]
-                                }),
-                                new TableCell({
-                                    children: [new Paragraph({ text: `${end.icon} ${end.name}` })]
-                                }),
-                                new TableCell({
-                                    children: [new Paragraph({ text: `${distance.toFixed(1)} 公里`, alignment: AlignmentType.CENTER })]
-                                }),
-                                new TableCell({
-                                    children: [new Paragraph({ text: estimateTime(distance), alignment: AlignmentType.CENTER })]
-                                })
-                            ]
-                        })
-                    );
+                    htmlContent += `
+            <tr>
+                <td>${start.icon} ${start.name}</td>
+                <td>${end.icon} ${end.name}</td>
+                <td style="text-align: center;">${distance.toFixed(1)} 公里</td>
+                <td style="text-align: center;">${estimateTime(distance)}</td>
+            </tr>
+`;
                 }
 
-                const distanceTable = new Table({
-                    rows: distanceRows,
-                    width: { size: 100, type: WidthType.PERCENTAGE }
-                });
+                htmlContent += `
+        </tbody>
+    </table>
 
-                sections.push(distanceTable);
+    <h2>💡 旅遊建議</h2>
+    <ul>
+        <li>建議提前預訂熱門景點門票，避免現場排隊等候</li>
+        <li>行車時請注意路況，建議使用 Google Maps 導航</li>
+        <li>各景點停留時間可依實際情況彈性調整</li>
+        <li>建議攜帶防曬用品、雨具及充足飲用水</li>
+        <li>品嚐在地美食時，注意營業時間與公休日</li>
+        <li>部分景點可能需要門票，建議事先查詢</li>
+        <li>建議早上早點出發，避開交通尖峰時段</li>
+    </ul>
 
-                // Recommendations section
-                sections.push(
-                    new Paragraph({
-                        text: "💡 旅遊建議",
-                        heading: HeadingLevel.HEADING_2,
-                        spacing: { before: 400, after: 200 }
-                    })
-                );
+    <div class="footer">
+        <div class="wish">祝您旅途愉快！🌟</div>
+        <div>本報告由台灣旅遊路線規劃系統自動生成</div>
+    </div>
+</body>
+</html>
+`;
 
-                const recommendations = [
-                    "建議提前預訂熱門景點門票，避免現場排隊等候",
-                    "行車時請注意路況，建議使用 Google Maps 導航",
-                    "各景點停留時間可依實際情況彈性調整",
-                    "建議攜帶防曬用品、雨具及充足飲用水",
-                    "品嚐在地美食時，注意營業時間與公休日",
-                    "部分景點可能需要門票，建議事先查詢",
-                    "建議早上早點出發，避開交通尖峰時段"
-                ];
-
-                recommendations.forEach(rec => {
-                    sections.push(
-                        new Paragraph({
-                            text: `• ${rec}`,
-                            spacing: { after: 100 }
-                        })
-                    );
-                });
-
-                // Footer
-                sections.push(
-                    new Paragraph({
-                        text: "",
-                        spacing: { before: 400 }
-                    })
-                );
-
-                sections.push(
-                    new Paragraph({
-                        text: "祝您旅途愉快！🌟",
-                        alignment: AlignmentType.CENTER,
-                        spacing: { before: 300 }
-                    })
-                );
-
-                sections.push(
-                    new Paragraph({
-                        text: "本報告由台灣旅遊路線規劃系統自動生成",
-                        alignment: AlignmentType.CENTER,
-                        italics: true,
-                        spacing: { before: 200 }
-                    })
-                );
-
-                // Create document
-                const doc = new Document({
-                    sections: [{
-                        properties: {},
-                        children: sections
-                    }]
-                });
-
-                // Generate and download
-                const blob = await docx.Packer.toBlob(doc);
+                // Convert HTML to Word using html-docx-js
+                const converted = htmlDocx.asBlob(htmlContent);
                 const fileName = `${route.name.replace(/[^a-zA-Z0-9\u4e00-\u9fa5]/g, '_')}_${today.getFullYear()}${(today.getMonth()+1).toString().padStart(2,'0')}${today.getDate().toString().padStart(2,'0')}.docx`;
 
-                saveAs(blob, fileName);
+                // Download
+                saveAs(converted, fileName);
 
                 console.log('Word document generated:', fileName);
 
             } catch (error) {
                 console.error('Error generating Word document:', error);
-                alert('生成報告時發生錯誤，請稍後再試');
+                alert('生成報告時發生錯誤：' + error.message);
             }
         }
 

@@ -445,6 +445,43 @@
                 font-size: 12px;
             }
         }
+
+        .export-container {
+            text-align: center;
+            margin: 30px 0;
+        }
+
+        .export-btn {
+            padding: 16px 40px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+            transition: all 0.3s;
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .export-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.6);
+        }
+
+        .export-btn:active {
+            transform: translateY(-1px);
+        }
+
+        @media (max-width: 768px) {
+            .export-btn {
+                padding: 14px 30px;
+                font-size: 16px;
+            }
+        }
     </style>
 </head>
 <body>
@@ -519,12 +556,21 @@
         </div>
 
         <div id="locationsList" class="info-cards"></div>
+
+        <div class="export-container" id="exportContainer" style="display: none;">
+            <button class="export-btn" onclick="exportToWord()">
+                📄 下載行程規劃報告 (Word)
+            </button>
+        </div>
     </div>
 
     <!-- Leaflet JS -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <!-- Leaflet Control Geocoder JS -->
     <script src="https://unpkg.com/leaflet-control-geocoder@2.4.0/dist/Control.Geocoder.js"></script>
+    <!-- Docx library for Word export -->
+    <script src="https://unpkg.com/docx@8.5.0/build/index.js"></script>
+    <script src="https://unpkg.com/file-saver@2.0.5/dist/FileSaver.min.js"></script>
 
     <script>
         console.log('=== Script Started ===');
@@ -1015,6 +1061,7 @@
                 document.getElementById('mapContainer').style.display = 'block';
                 document.getElementById('nearbyContainer').style.display = 'block';
                 document.getElementById('searchContainer').style.display = 'block';
+                document.getElementById('exportContainer').style.display = 'block';
                 document.getElementById('status').style.display = 'none';
 
                 // Force map to recalculate size
@@ -1291,6 +1338,322 @@
                 showRoute(ROUTES[routeKey]);
                 // Reload nearby attractions for the new route
                 loadNearbyAttractions();
+            }
+        }
+
+        // Export to Word document
+        async function exportToWord() {
+            try {
+                const { Document, Paragraph, TextRun, Table, TableCell, TableRow,
+                        AlignmentType, WidthType, BorderStyle, HeadingLevel,
+                        convertInchesToTwip } = docx;
+
+                const route = ROUTES[currentRoute];
+                const allLocations = [...route.locations, ...customLocations];
+
+                // Calculate total distance and time
+                let totalDistance = 0;
+                let totalMinutes = 0;
+                for (let i = 0; i < allLocations.length - 1; i++) {
+                    const distance = calculateDistance(
+                        allLocations[i].lat, allLocations[i].lng,
+                        allLocations[i + 1].lat, allLocations[i + 1].lng
+                    );
+                    totalDistance += distance;
+                    totalMinutes += Math.round(distance / 50 * 60);
+                }
+
+                const today = new Date();
+                const dateStr = today.toLocaleDateString('zh-TW', {
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric'
+                });
+
+                // Create document sections
+                const sections = [];
+
+                // Title
+                sections.push(
+                    new Paragraph({
+                        text: "🗺️ 台灣旅遊行程規劃報告",
+                        heading: HeadingLevel.TITLE,
+                        alignment: AlignmentType.CENTER,
+                        spacing: { after: 300 }
+                    })
+                );
+
+                // Route name
+                sections.push(
+                    new Paragraph({
+                        text: route.name,
+                        heading: HeadingLevel.HEADING_1,
+                        alignment: AlignmentType.CENTER,
+                        spacing: { after: 200 }
+                    })
+                );
+
+                // Date
+                sections.push(
+                    new Paragraph({
+                        text: `製作日期：${dateStr}`,
+                        alignment: AlignmentType.CENTER,
+                        spacing: { after: 400 }
+                    })
+                );
+
+                // Summary section
+                sections.push(
+                    new Paragraph({
+                        text: "📊 行程摘要",
+                        heading: HeadingLevel.HEADING_2,
+                        spacing: { before: 300, after: 200 }
+                    })
+                );
+
+                sections.push(
+                    new Paragraph({
+                        children: [
+                            new TextRun({ text: "總景點數：", bold: true }),
+                            new TextRun({ text: `${allLocations.length} 個` })
+                        ],
+                        spacing: { after: 100 }
+                    })
+                );
+
+                sections.push(
+                    new Paragraph({
+                        children: [
+                            new TextRun({ text: "總距離：", bold: true }),
+                            new TextRun({ text: `${totalDistance.toFixed(1)} 公里` })
+                        ],
+                        spacing: { after: 100 }
+                    })
+                );
+
+                sections.push(
+                    new Paragraph({
+                        children: [
+                            new TextRun({ text: "預估行車時間：", bold: true }),
+                            new TextRun({ text: estimateTime(totalDistance) })
+                        ],
+                        spacing: { after: 300 }
+                    })
+                );
+
+                // Itinerary section
+                sections.push(
+                    new Paragraph({
+                        text: "🗓️ 詳細行程",
+                        heading: HeadingLevel.HEADING_2,
+                        spacing: { before: 300, after: 200 }
+                    })
+                );
+
+                // Create itinerary table
+                const tableRows = [];
+
+                // Header row
+                tableRows.push(
+                    new TableRow({
+                        children: [
+                            new TableCell({
+                                children: [new Paragraph({ text: "順序", bold: true, alignment: AlignmentType.CENTER })],
+                                width: { size: 10, type: WidthType.PERCENTAGE }
+                            }),
+                            new TableCell({
+                                children: [new Paragraph({ text: "景點名稱", bold: true, alignment: AlignmentType.CENTER })],
+                                width: { size: 25, type: WidthType.PERCENTAGE }
+                            }),
+                            new TableCell({
+                                children: [new Paragraph({ text: "描述", bold: true, alignment: AlignmentType.CENTER })],
+                                width: { size: 35, type: WidthType.PERCENTAGE }
+                            }),
+                            new TableCell({
+                                children: [new Paragraph({ text: "時間", bold: true, alignment: AlignmentType.CENTER })],
+                                width: { size: 15, type: WidthType.PERCENTAGE }
+                            }),
+                            new TableCell({
+                                children: [new Paragraph({ text: "備註", bold: true, alignment: AlignmentType.CENTER })],
+                                width: { size: 15, type: WidthType.PERCENTAGE }
+                            })
+                        ]
+                    })
+                );
+
+                // Data rows
+                allLocations.forEach((loc, i) => {
+                    const note = loc.custom ? '自訂景點' : '推薦景點';
+                    tableRows.push(
+                        new TableRow({
+                            children: [
+                                new TableCell({
+                                    children: [new Paragraph({ text: `${i + 1}`, alignment: AlignmentType.CENTER })]
+                                }),
+                                new TableCell({
+                                    children: [new Paragraph({ text: `${loc.icon} ${loc.name}` })]
+                                }),
+                                new TableCell({
+                                    children: [new Paragraph({ text: loc.desc })]
+                                }),
+                                new TableCell({
+                                    children: [new Paragraph({ text: loc.time, alignment: AlignmentType.CENTER })]
+                                }),
+                                new TableCell({
+                                    children: [new Paragraph({ text: note, alignment: AlignmentType.CENTER })]
+                                })
+                            ]
+                        })
+                    );
+                });
+
+                const table = new Table({
+                    rows: tableRows,
+                    width: { size: 100, type: WidthType.PERCENTAGE }
+                });
+
+                sections.push(table);
+
+                // Distance information section
+                sections.push(
+                    new Paragraph({
+                        text: "🚗 路程資訊",
+                        heading: HeadingLevel.HEADING_2,
+                        spacing: { before: 400, after: 200 }
+                    })
+                );
+
+                const distanceRows = [];
+
+                // Header
+                distanceRows.push(
+                    new TableRow({
+                        children: [
+                            new TableCell({
+                                children: [new Paragraph({ text: "起點", bold: true, alignment: AlignmentType.CENTER })],
+                                width: { size: 30, type: WidthType.PERCENTAGE }
+                            }),
+                            new TableCell({
+                                children: [new Paragraph({ text: "終點", bold: true, alignment: AlignmentType.CENTER })],
+                                width: { size: 30, type: WidthType.PERCENTAGE }
+                            }),
+                            new TableCell({
+                                children: [new Paragraph({ text: "距離", bold: true, alignment: AlignmentType.CENTER })],
+                                width: { size: 20, type: WidthType.PERCENTAGE }
+                            }),
+                            new TableCell({
+                                children: [new Paragraph({ text: "預估時間", bold: true, alignment: AlignmentType.CENTER })],
+                                width: { size: 20, type: WidthType.PERCENTAGE }
+                            })
+                        ]
+                    })
+                );
+
+                // Data rows
+                for (let i = 0; i < allLocations.length - 1; i++) {
+                    const start = allLocations[i];
+                    const end = allLocations[i + 1];
+                    const distance = calculateDistance(start.lat, start.lng, end.lat, end.lng);
+
+                    distanceRows.push(
+                        new TableRow({
+                            children: [
+                                new TableCell({
+                                    children: [new Paragraph({ text: `${start.icon} ${start.name}` })]
+                                }),
+                                new TableCell({
+                                    children: [new Paragraph({ text: `${end.icon} ${end.name}` })]
+                                }),
+                                new TableCell({
+                                    children: [new Paragraph({ text: `${distance.toFixed(1)} 公里`, alignment: AlignmentType.CENTER })]
+                                }),
+                                new TableCell({
+                                    children: [new Paragraph({ text: estimateTime(distance), alignment: AlignmentType.CENTER })]
+                                })
+                            ]
+                        })
+                    );
+                }
+
+                const distanceTable = new Table({
+                    rows: distanceRows,
+                    width: { size: 100, type: WidthType.PERCENTAGE }
+                });
+
+                sections.push(distanceTable);
+
+                // Recommendations section
+                sections.push(
+                    new Paragraph({
+                        text: "💡 旅遊建議",
+                        heading: HeadingLevel.HEADING_2,
+                        spacing: { before: 400, after: 200 }
+                    })
+                );
+
+                const recommendations = [
+                    "建議提前預訂熱門景點門票，避免現場排隊等候",
+                    "行車時請注意路況，建議使用 Google Maps 導航",
+                    "各景點停留時間可依實際情況彈性調整",
+                    "建議攜帶防曬用品、雨具及充足飲用水",
+                    "品嚐在地美食時，注意營業時間與公休日",
+                    "部分景點可能需要門票，建議事先查詢",
+                    "建議早上早點出發，避開交通尖峰時段"
+                ];
+
+                recommendations.forEach(rec => {
+                    sections.push(
+                        new Paragraph({
+                            text: `• ${rec}`,
+                            spacing: { after: 100 }
+                        })
+                    );
+                });
+
+                // Footer
+                sections.push(
+                    new Paragraph({
+                        text: "",
+                        spacing: { before: 400 }
+                    })
+                );
+
+                sections.push(
+                    new Paragraph({
+                        text: "祝您旅途愉快！🌟",
+                        alignment: AlignmentType.CENTER,
+                        spacing: { before: 300 }
+                    })
+                );
+
+                sections.push(
+                    new Paragraph({
+                        text: "本報告由台灣旅遊路線規劃系統自動生成",
+                        alignment: AlignmentType.CENTER,
+                        italics: true,
+                        spacing: { before: 200 }
+                    })
+                );
+
+                // Create document
+                const doc = new Document({
+                    sections: [{
+                        properties: {},
+                        children: sections
+                    }]
+                });
+
+                // Generate and download
+                const blob = await docx.Packer.toBlob(doc);
+                const fileName = `${route.name.replace(/[^a-zA-Z0-9\u4e00-\u9fa5]/g, '_')}_${today.getFullYear()}${(today.getMonth()+1).toString().padStart(2,'0')}${today.getDate().toString().padStart(2,'0')}.docx`;
+
+                saveAs(blob, fileName);
+
+                console.log('Word document generated:', fileName);
+
+            } catch (error) {
+                console.error('Error generating Word document:', error);
+                alert('生成報告時發生錯誤，請稍後再試');
             }
         }
 

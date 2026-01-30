@@ -1631,16 +1631,21 @@
 `;
 
                 // Convert HTML to Word using html-docx-js
+                console.log('[Word Export] 開始轉換...');
                 const converted = htmlDocx.asBlob(htmlContent);
+                console.log('[Word Export] 轉換完成，大小:', converted.size, 'bytes');
+
                 const fileName = `${route.name.replace(/[^a-zA-Z0-9\u4e00-\u9fa5]/g, '_')}_${today.getFullYear()}${(today.getMonth()+1).toString().padStart(2,'0')}${today.getDate().toString().padStart(2,'0')}.docx`;
 
                 // Detect device type
                 const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
                 const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+                console.log('[Word Export] 裝置:', isMobile ? (isIOS ? 'iOS' : 'Android/Mobile') : 'Desktop');
 
                 // Download - use different methods based on device and browser
                 if (isMobile && navigator.share && isIOS) {
                     // iOS Share API (best option for iPhone/iPad)
+                    console.log('[Word Export] 使用 iOS Share API');
                     const file = new File([converted], fileName, { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
 
                     navigator.share({
@@ -1648,14 +1653,19 @@
                         title: route.name,
                         text: '台灣旅遊行程規劃報告'
                     }).then(() => {
-                        console.log('File shared successfully');
+                        console.log('[Word Export] ✓ Share 成功');
                     }).catch((error) => {
-                        console.error('Share failed:', error);
-                        // Fallback for iOS if share fails
-                        iosDownloadFallback(converted, fileName);
+                        if (error.name === 'AbortError') {
+                            console.log('[Word Export] 使用者取消分享');
+                        } else {
+                            console.error('[Word Export] Share 失敗:', error.message);
+                            // Fallback for iOS if share fails
+                            iosDownloadFallback(converted, fileName);
+                        }
                     });
                 } else if (isMobile) {
                     // Android and other mobile browsers
+                    console.log('[Word Export] 使用 Mobile 下載');
                     try {
                         const url = URL.createObjectURL(converted);
                         const a = document.createElement('a');
@@ -1671,9 +1681,10 @@
                             URL.revokeObjectURL(url);
                         }, 100);
 
+                        console.log('[Word Export] ✓ Mobile 下載觸發完成');
                         alert('📱 檔案已準備下載\n\n請檢查您的下載資料夾或瀏覽器的下載通知。\n\n檔案名稱：' + fileName);
                     } catch (error) {
-                        console.error('Mobile download failed:', error);
+                        console.error('[Word Export] Mobile 下載失敗:', error.message);
                         if (isIOS) {
                             iosDownloadFallback(converted, fileName);
                         } else {
@@ -1682,7 +1693,9 @@
                     }
                 } else {
                     // Desktop download using FileSaver
+                    console.log('[Word Export] 使用 Desktop FileSaver');
                     saveAs(converted, fileName);
+                    console.log('[Word Export] ✓ Desktop 下載觸發完成');
                 }
 
                 console.log('Word document generated:', fileName);

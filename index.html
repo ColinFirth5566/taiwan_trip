@@ -562,6 +562,7 @@
         let customLocations = [];
         let nearbyAttractions = [];
         let nearbyMarkers = [];
+        let loadNearbyTimeout = null;
 
         // Calculate distance using Haversine formula
         function calculateDistance(lat1, lng1, lat2, lng2) {
@@ -788,7 +789,44 @@
             return typeMap[type] || '景點';
         }
 
-        // Predefined recommended attractions for each route
+        // All Taiwan attractions database
+        const ALL_ATTRACTIONS = [
+            // Chiayi area
+            { name: '東石漁人碼頭', lat: 23.4603, lng: 120.1492, icon: '⚓', typeName: '觀光漁港', desc: '夕陽美景與海鮮' },
+            { name: '朴子配天宮', lat: 23.4647, lng: 120.2475, icon: '⛩️', typeName: '廟宇', desc: '嘉義知名媽祖廟' },
+            { name: '蒜頭糖廠', lat: 23.4836, lng: 120.3119, icon: '🏭', typeName: '文化園區', desc: '歷史糖廠與五分車' },
+            { name: '板陶窯交趾剪黏工藝園區', lat: 23.5442, lng: 120.3647, icon: '🎨', typeName: '工藝園區', desc: '傳統工藝體驗' },
+            { name: '北港朝天宮', lat: 23.5719, lng: 120.3006, icon: '⛩️', typeName: '廟宇', desc: '台灣媽祖信仰中心' },
+            { name: '溪口老街', lat: 23.6039, lng: 120.3933, icon: '🏮', typeName: '老街', desc: '傳統老街風情' },
+            { name: '阿里山森林遊樂區', lat: 23.5081, lng: 120.8128, icon: '🌲', typeName: '森林遊樂區', desc: '日出雲海與神木' },
+            { name: '梅山太平雲梯', lat: 23.5633, lng: 120.5986, icon: '🌉', typeName: '吊橋景點', desc: '高空景觀吊橋' },
+            { name: '奮起湖老街', lat: 23.5044, lng: 120.6972, icon: '🚂', typeName: '老街', desc: '鐵道便當與老街' },
+            { name: '檜意森活村', lat: 23.4800, lng: 120.4514, icon: '🏘️', typeName: '文創園區', desc: '日式建築群' },
+            { name: '嘉義文化創意產業園區', lat: 23.4767, lng: 120.4422, icon: '🎨', typeName: '文創園區', desc: '藝文展演空間' },
+
+            // Tainan area
+            { name: '井仔腳瓦盤鹽田', lat: 23.1808, lng: 120.0769, icon: '🌅', typeName: '鹽田景點', desc: '台灣最古老鹽田' },
+            { name: '北門水晶教堂', lat: 23.2672, lng: 120.1231, icon: '⛪', typeName: '地標建築', desc: 'IG熱門打卡點' },
+            { name: '七股鹽山', lat: 23.1408, lng: 120.1086, icon: '⛰️', typeName: '觀光鹽山', desc: '壯觀的白色鹽山' },
+            { name: '安平古堡', lat: 22.9998, lng: 120.1606, icon: '🏰', typeName: '歷史古蹟', desc: '台灣最古老城堡' },
+            { name: '赤崁樓', lat: 22.9973, lng: 120.2025, icon: '🏛️', typeName: '歷史古蹟', desc: '台南代表性古蹟' },
+            { name: '神農街', lat: 22.9978, lng: 120.1947, icon: '🏮', typeName: '文創老街', desc: '文青必訪老街' },
+            { name: '藍晒圖文創園區', lat: 22.9908, lng: 120.2050, icon: '🎨', typeName: '文創園區', desc: '創意藝術空間' },
+            { name: '林百貨', lat: 22.9917, lng: 120.2025, icon: '🏬', typeName: '文創百貨', desc: '台南銀座摩天樓' },
+            { name: '安平樹屋', lat: 22.9972, lng: 120.1617, icon: '🌳', typeName: '歷史遺址', desc: '榕樹與倉庫共生' },
+            { name: '安平老街', lat: 23.0003, lng: 120.1614, icon: '🏮', typeName: '老街', desc: '古早味小吃' },
+            { name: '四草綠色隧道', lat: 23.0200, lng: 120.1361, icon: '🚣', typeName: '生態景點', desc: '台灣袖珍版亞馬遜河' },
+            { name: '奇美博物館', lat: 23.0006, lng: 120.2344, icon: '🏛️', typeName: '博物館', desc: '歐式宮殿博物館' },
+            { name: '十鼓仁糖文創園區', lat: 22.9519, lng: 120.2458, icon: '🥁', typeName: '文創園區', desc: '鼓樂與糖廠' },
+            { name: '台南孔廟', lat: 22.9904, lng: 120.2073, icon: '🏛️', typeName: '歷史古蹟', desc: '全台首學' },
+            { name: '花園夜市', lat: 23.0156, lng: 120.1839, icon: '🌃', typeName: '夜市', desc: '台南最大夜市' },
+            { name: '黃金海岸', lat: 23.0403, lng: 120.1147, icon: '🏖️', typeName: '海灘', desc: '看夕陽戲水' },
+            { name: '虎頭埤風景區', lat: 23.0578, lng: 120.3292, icon: '🏞️', typeName: '風景區', desc: '湖光山色' },
+            { name: '烏山頭水庫', lat: 23.2050, lng: 120.3506, icon: '🏞️', typeName: '水庫景點', desc: '珊瑚潭美景' },
+            { name: '左鎮化石園區', lat: 23.0614, lng: 120.4069, icon: '🦴', typeName: '博物館', desc: '化石與考古' }
+        ];
+
+        // Predefined recommended attractions for each route (for initial load)
         const RECOMMENDED_ATTRACTIONS = {
             route2: [
                 { name: '東石漁人碼頭', lat: 23.4603, lng: 120.1492, icon: '⚓', typeName: '觀光漁港', desc: '夕陽美景與海鮮' },
@@ -810,10 +848,47 @@
             ]
         };
 
+        // Handle map move or zoom events (with debounce)
+        function onMapMoveOrZoom() {
+            if (loadNearbyTimeout) {
+                clearTimeout(loadNearbyTimeout);
+            }
+            loadNearbyTimeout = setTimeout(() => {
+                loadNearbyAttractionsFromMap();
+            }, 500); // Wait 500ms after user stops moving
+        }
+
+        // Load nearby attractions based on current map view
+        function loadNearbyAttractionsFromMap() {
+            if (!map) return;
+
+            const center = map.getCenter();
+            const zoom = map.getZoom();
+
+            // Calculate radius based on zoom level
+            // Higher zoom = smaller area, lower zoom = larger area
+            let radiusKm;
+            if (zoom >= 13) {
+                radiusKm = 5;
+            } else if (zoom >= 11) {
+                radiusKm = 15;
+            } else if (zoom >= 9) {
+                radiusKm = 30;
+            } else {
+                radiusKm = 50;
+            }
+
+            console.log('Loading attractions at', center.lat, center.lng, 'radius:', radiusKm, 'km, zoom:', zoom);
+
+            loadNearbyAttractions(center.lat, center.lng, radiusKm, false);
+        }
+
         // Load nearby attractions using Overpass API
-        async function loadNearbyAttractions() {
+        async function loadNearbyAttractions(centerLat = null, centerLng = null, radiusKm = 10, updateGrid = true) {
             const grid = document.getElementById('nearbyGrid');
-            grid.innerHTML = '<div class="loading-nearby">載入附近景點中...</div>';
+            if (updateGrid) {
+                grid.innerHTML = '<div class="loading-nearby">載入附近景點中...</div>';
+            }
 
             console.log('Loading nearby attractions for route:', currentRoute);
 
@@ -821,66 +896,52 @@
                 const route = ROUTES[currentRoute];
                 const allLocations = [...route.locations, ...customLocations];
 
-                // Calculate center point of the route
-                let centerLat = 0, centerLng = 0;
-                allLocations.forEach(loc => {
-                    centerLat += loc.lat;
-                    centerLng += loc.lng;
-                });
-                centerLat /= allLocations.length;
-                centerLng /= allLocations.length;
+                // Use provided center or calculate from route
+                if (centerLat === null || centerLng === null) {
+                    centerLat = 0;
+                    centerLng = 0;
+                    allLocations.forEach(loc => {
+                        centerLat += loc.lat;
+                        centerLng += loc.lng;
+                    });
+                    centerLat /= allLocations.length;
+                    centerLng /= allLocations.length;
+                }
 
-                console.log('Route center:', centerLat, centerLng);
+                console.log('Search center:', centerLat, centerLng, 'radius:', radiusKm, 'km');
 
-                // First, show predefined recommendations immediately
-                let attractions = RECOMMENDED_ATTRACTIONS[currentRoute] || [];
-
-                // Filter out attractions already in route
-                attractions = attractions
+                // Use all attractions database and filter by distance
+                let attractions = ALL_ATTRACTIONS
                     .map(attr => ({
                         ...attr,
                         distance: calculateDistance(centerLat, centerLng, attr.lat, attr.lng)
                     }))
                     .filter(attr => {
+                        // Filter by radius
+                        if (attr.distance > radiusKm) return false;
+
+                        // Filter out attractions already in route
                         return !allLocations.some(loc =>
                             Math.abs(loc.lat - attr.lat) < 0.01 &&
                             Math.abs(loc.lng - attr.lng) < 0.01
                         );
                     })
-                    .sort((a, b) => a.distance - b.distance);
+                    .sort((a, b) => a.distance - b.distance)
+                    .slice(0, 20); // Show up to 20 nearby attractions
 
                 console.log('Filtered attractions:', attractions.length);
 
-                // Try to fetch additional attractions from Overpass API in background
-                fetchOverpassAttractions(centerLat, centerLng, allLocations).then(overpassAttractions => {
-                    if (overpassAttractions.length > 0) {
-                        console.log('Got Overpass attractions:', overpassAttractions.length);
-                        // Merge and deduplicate
-                        const merged = [...attractions];
-                        overpassAttractions.forEach(oa => {
-                            if (!merged.some(a =>
-                                Math.abs(a.lat - oa.lat) < 0.001 &&
-                                Math.abs(a.lng - oa.lng) < 0.001
-                            )) {
-                                merged.push(oa);
-                            }
-                        });
-                        attractions = merged.sort((a, b) => a.distance - b.distance).slice(0, 12);
-                        displayAttractions(attractions, grid);
-                    }
-                }).catch(err => {
-                    console.log('Overpass API failed, using predefined only:', err);
-                });
-
-                // Display predefined attractions immediately
+                // Display attractions
                 if (attractions.length === 0) {
-                    grid.innerHTML = '<div class="loading-nearby">找不到新的景點推薦</div>';
+                    if (updateGrid) {
+                        grid.innerHTML = '<div class="loading-nearby">找不到新的景點推薦</div>';
+                    }
                     nearbyAttractions = [];
                     showNearbyMarkersOnMap();
                     return;
                 }
 
-                displayAttractions(attractions, grid);
+                displayAttractions(attractions, grid, updateGrid);
 
             } catch (error) {
                 console.error('Error loading nearby attractions:', error);
@@ -889,91 +950,40 @@
         }
 
         // Display attractions in grid
-        function displayAttractions(attractions, grid) {
+        function displayAttractions(attractions, grid, updateGrid = true) {
             // Store attractions for map markers
             nearbyAttractions = attractions;
 
             console.log('Displaying', attractions.length, 'attractions');
 
-            // Display attractions
-            let html = '';
-            attractions.forEach((attr, index) => {
-                html += `
-                    <div class="nearby-card" onclick='addNearbyAttractionFromMap(${index})'>
-                        <div class="nearby-card-header">
-                            <span class="nearby-card-icon">${attr.icon}</span>
-                            <span class="nearby-card-name">${attr.name}</span>
+            // Update grid UI only if requested
+            if (updateGrid) {
+                let html = '';
+                attractions.forEach((attr, index) => {
+                    html += `
+                        <div class="nearby-card" onclick='addNearbyAttractionFromMap(${index})'>
+                            <div class="nearby-card-header">
+                                <span class="nearby-card-icon">${attr.icon}</span>
+                                <span class="nearby-card-name">${attr.name}</span>
+                            </div>
+                            <div class="nearby-card-type">${attr.typeName}</div>
+                            <div class="nearby-card-distance">📍 距離約 ${attr.distance.toFixed(1)} 公里</div>
+                            <button class="nearby-card-add" onclick="event.stopPropagation(); addNearbyAttractionFromMap(${index})">
+                                ➕ 加入行程
+                            </button>
                         </div>
-                        <div class="nearby-card-type">${attr.typeName}</div>
-                        <div class="nearby-card-distance">📍 距離路線中心約 ${attr.distance.toFixed(1)} 公里</div>
-                        <button class="nearby-card-add" onclick="event.stopPropagation(); addNearbyAttractionFromMap(${index})">
-                            ➕ 加入行程
-                        </button>
-                    </div>
-                `;
-            });
+                    `;
+                });
 
-            grid.innerHTML = html;
+                grid.innerHTML = html;
+            }
 
-            // Show blue markers on map
+            // Always update map markers
             if (map) {
                 showNearbyMarkersOnMap();
             }
         }
 
-        // Fetch attractions from Overpass API (async, optional)
-        async function fetchOverpassAttractions(centerLat, centerLng, allLocations) {
-            const radius = 10000;
-
-            const query = `
-                [out:json][timeout:25];
-                (
-                    node["tourism"](around:${radius},${centerLat},${centerLng});
-                    node["historic"](around:${radius},${centerLat},${centerLng});
-                    node["leisure"="park"](around:${radius},${centerLat},${centerLng});
-                    node["amenity"="place_of_worship"](around:${radius},${centerLat},${centerLng});
-                );
-                out body;
-            `;
-
-            const response = await fetch('https://overpass-api.de/api/interpreter', {
-                method: 'POST',
-                body: query
-            });
-
-            const data = await response.json();
-
-            if (!data.elements || data.elements.length === 0) {
-                return [];
-            }
-
-            // Filter and process attractions
-            return data.elements
-                .filter(el => el.tags && el.tags.name)
-                .map(el => {
-                    const type = el.tags.tourism || el.tags.historic || el.tags.leisure || el.tags.amenity || 'attraction';
-                    const distance = calculateDistance(centerLat, centerLng, el.lat, el.lon);
-
-                    return {
-                        name: el.tags.name,
-                        type: type,
-                        typeName: getAttractionTypeName(type),
-                        icon: getAttractionIcon(type),
-                        lat: el.lat,
-                        lng: el.lon,
-                        distance: distance,
-                        desc: el.tags.description || el.tags['name:en'] || type
-                    };
-                })
-                .filter(attr => {
-                    return !allLocations.some(loc =>
-                        Math.abs(loc.lat - attr.lat) < 0.001 &&
-                        Math.abs(loc.lng - attr.lng) < 0.001
-                    );
-                })
-                .sort((a, b) => a.distance - b.distance)
-                .slice(0, 12);
-        }
 
 
         // Initialize
@@ -1018,6 +1028,10 @@
 
                 // Load nearby attractions
                 loadNearbyAttractions();
+
+                // Add map event listeners for dynamic loading
+                map.on('moveend', onMapMoveOrZoom);
+                map.on('zoomend', onMapMoveOrZoom);
 
                 console.log('✓ Initialization complete');
 

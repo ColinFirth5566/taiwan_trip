@@ -1404,15 +1404,8 @@
                     return;
                 }
 
-                // Show loading indicator
-                console.log('=== 開始生成 Word 文件 ===');
-                console.log('時間:', new Date().toLocaleTimeString());
-
                 const route = ROUTES[currentRoute];
                 const allLocations = [...route.locations, ...customLocations];
-
-                console.log('路線:', route.name);
-                console.log('景點數量:', allLocations.length);
 
                 // Calculate total distance and time
                 let totalDistance = 0;
@@ -1638,50 +1631,31 @@
 `;
 
                 // Convert HTML to Word using html-docx-js
-                console.log('開始轉換 HTML 為 Word 格式...');
                 const converted = htmlDocx.asBlob(htmlContent);
-                console.log('✓ 轉換完成，檔案大小:', converted.size, 'bytes');
-
                 const fileName = `${route.name.replace(/[^a-zA-Z0-9\u4e00-\u9fa5]/g, '_')}_${today.getFullYear()}${(today.getMonth()+1).toString().padStart(2,'0')}${today.getDate().toString().padStart(2,'0')}.docx`;
-                console.log('檔案名稱:', fileName);
 
                 // Detect device type
                 const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
                 const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
-                const hasShareAPI = typeof navigator.share !== 'undefined';
-                const canShareFiles = hasShareAPI && navigator.canShare && navigator.canShare({ files: [new File([], 'test.txt')] });
-                console.log('裝置類型 - Mobile:', isMobile, 'iOS:', isIOS);
-                console.log('Share API 可用:', hasShareAPI, 'Can share files:', canShareFiles);
 
                 // Download - use different methods based on device and browser
                 if (isMobile && navigator.share && isIOS) {
                     // iOS Share API (best option for iPhone/iPad)
-                    console.log('使用 iOS Share API...');
                     const file = new File([converted], fileName, { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
-                    console.log('File object created:', file.name, file.size, file.type);
 
-                    console.log('呼叫 navigator.share()...');
                     navigator.share({
                         files: [file],
                         title: route.name,
                         text: '台灣旅遊行程規劃報告'
                     }).then(() => {
-                        console.log('✓ iOS Share 成功完成');
+                        console.log('File shared successfully');
                     }).catch((error) => {
-                        console.error('❌ iOS Share 發生錯誤:', error.name, error.message);
-
-                        // Check if user just cancelled (AbortError) vs actual error
-                        if (error.name === 'AbortError') {
-                            console.log('使用者取消分享');
-                        } else {
-                            // Actual error - try fallback
-                            console.log('嘗試使用備用下載方式...');
-                            iosDownloadFallback(converted, fileName);
-                        }
+                        console.error('Share failed:', error);
+                        // Fallback for iOS if share fails
+                        iosDownloadFallback(converted, fileName);
                     });
                 } else if (isMobile) {
                     // Android and other mobile browsers
-                    console.log('使用 Android/Mobile 下載方式...');
                     try {
                         const url = URL.createObjectURL(converted);
                         const a = document.createElement('a');

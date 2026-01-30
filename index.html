@@ -1637,8 +1637,7 @@
 
                 const fileName = `${route.name.replace(/[^a-zA-Z0-9\u4e00-\u9fa5]/g, '_')}_${today.getFullYear()}${(today.getMonth()+1).toString().padStart(2,'0')}${today.getDate().toString().padStart(2,'0')}.docx`;
 
-                // Detect device type
-                const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+                // Detect device type (isMobile already declared above)
                 const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
                 console.log('[Word Export] 裝置:', isMobile ? (isIOS ? 'iOS' : 'Android/Mobile') : 'Desktop');
 

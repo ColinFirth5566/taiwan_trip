@@ -575,6 +575,18 @@
     <script>
         console.log('=== Script Started ===');
 
+        // Check if external libraries are loaded
+        window.addEventListener('load', function() {
+            console.log('Checking external libraries...');
+            console.log('Leaflet loaded:', typeof L !== 'undefined');
+            console.log('FileSaver loaded:', typeof saveAs !== 'undefined');
+            console.log('html-docx-js loaded:', typeof htmlDocx !== 'undefined');
+
+            if (typeof saveAs === 'undefined' || typeof htmlDocx === 'undefined') {
+                console.warn('⚠️ Word export libraries not loaded! Download feature may not work.');
+            }
+        });
+
         // Route data
         const ROUTES = {
             route2: {
@@ -1344,6 +1356,19 @@
         // Export to Word document
         function exportToWord() {
             try {
+                // Check if required libraries are loaded
+                if (typeof htmlDocx === 'undefined') {
+                    alert('❌ Word 匯出功能載入失敗\n\n無法載入 html-docx-js 函式庫。\n\n可能原因：\n1. 網路連線問題\n2. 防火牆或廣告封鎖程式阻擋\n3. 瀏覽器安全設定\n\n請嘗試：\n• 重新整理頁面 (F5)\n• 暫時關閉廣告封鎖程式\n• 使用其他瀏覽器\n• 檢查網路連線');
+                    console.error('html-docx-js library not loaded');
+                    return;
+                }
+
+                if (typeof saveAs === 'undefined') {
+                    alert('❌ 檔案下載功能載入失敗\n\n無法載入 FileSaver 函式庫。\n\n可能原因：\n1. 網路連線問題\n2. 防火牆或廣告封鎖程式阻擋\n3. 瀏覽器安全設定\n\n請嘗試：\n• 重新整理頁面 (F5)\n• 暫時關閉廣告封鎖程式\n• 使用其他瀏覽器\n• 檢查網路連線');
+                    console.error('FileSaver library not loaded');
+                    return;
+                }
+
                 const route = ROUTES[currentRoute];
                 const allLocations = [...route.locations, ...customLocations];
 

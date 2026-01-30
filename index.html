@@ -1359,6 +1359,33 @@
             }
         }
 
+        // iOS Safari fallback for file download
+        function iosDownloadFallback(blob, filename) {
+            // Convert blob to base64 data URL
+            const reader = new FileReader();
+            reader.onloadend = function() {
+                const base64data = reader.result;
+
+                // Create a temporary link and try to trigger download
+                const a = document.createElement('a');
+                a.href = base64data;
+                a.download = filename;
+                a.style.display = 'none';
+                document.body.appendChild(a);
+
+                try {
+                    a.click();
+                    alert('📱 iPhone/iPad 檔案下載\n\n如果檔案沒有自動下載，請：\n\n1. 長按下方的連結\n2. 選擇「下載連結的檔案」\n3. 檔案會儲存到「檔案」App 的下載資料夾\n\n或嘗試使用 Safari 以外的瀏覽器（Chrome、Edge）');
+                } catch (e) {
+                    console.error('iOS download failed:', e);
+                    alert('❌ 下載失敗\n\niPhone Safari 可能不支援此下載方式。\n\n建議：\n1. 使用 Chrome 或 Edge 瀏覽器\n2. 或使用電腦下載\n3. 或請其他人用 Android 手機下載後傳給您');
+                }
+
+                document.body.removeChild(a);
+            };
+            reader.readAsDataURL(blob);
+        }
+
         // Export to Word document
         function exportToWord() {
             try {
@@ -1607,28 +1634,52 @@
                 const converted = htmlDocx.asBlob(htmlContent);
                 const fileName = `${route.name.replace(/[^a-zA-Z0-9\u4e00-\u9fa5]/g, '_')}_${today.getFullYear()}${(today.getMonth()+1).toString().padStart(2,'0')}${today.getDate().toString().padStart(2,'0')}.docx`;
 
-                // Detect if mobile device
+                // Detect device type
                 const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+                const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
 
-                // Download - use different methods for mobile and desktop
-                if (isMobile) {
-                    // Mobile-friendly download
-                    const url = URL.createObjectURL(converted);
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.download = fileName;
-                    a.style.display = 'none';
-                    document.body.appendChild(a);
-                    a.click();
+                // Download - use different methods based on device and browser
+                if (isMobile && navigator.share && isIOS) {
+                    // iOS Share API (best option for iPhone/iPad)
+                    const file = new File([converted], fileName, { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
 
-                    // Clean up
-                    setTimeout(() => {
-                        document.body.removeChild(a);
-                        URL.revokeObjectURL(url);
-                    }, 100);
+                    navigator.share({
+                        files: [file],
+                        title: route.name,
+                        text: '台灣旅遊行程規劃報告'
+                    }).then(() => {
+                        console.log('File shared successfully');
+                    }).catch((error) => {
+                        console.error('Share failed:', error);
+                        // Fallback for iOS if share fails
+                        iosDownloadFallback(converted, fileName);
+                    });
+                } else if (isMobile) {
+                    // Android and other mobile browsers
+                    try {
+                        const url = URL.createObjectURL(converted);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = fileName;
+                        a.style.display = 'none';
+                        document.body.appendChild(a);
+                        a.click();
 
-                    // Show mobile-specific message
-                    alert('📱 檔案已準備下載\n\n請檢查您的下載資料夾或瀏覽器的下載通知。\n\n檔案名稱：' + fileName);
+                        // Clean up
+                        setTimeout(() => {
+                            document.body.removeChild(a);
+                            URL.revokeObjectURL(url);
+                        }, 100);
+
+                        alert('📱 檔案已準備下載\n\n請檢查您的下載資料夾或瀏覽器的下載通知。\n\n檔案名稱：' + fileName);
+                    } catch (error) {
+                        console.error('Mobile download failed:', error);
+                        if (isIOS) {
+                            iosDownloadFallback(converted, fileName);
+                        } else {
+                            throw error;
+                        }
+                    }
                 } else {
                     // Desktop download using FileSaver
                     saveAs(converted, fileName);

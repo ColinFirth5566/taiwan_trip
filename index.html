@@ -577,13 +577,19 @@
 
         // Check if external libraries are loaded
         window.addEventListener('load', function() {
+            const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
             console.log('Checking external libraries...');
+            console.log('Device type:', isMobile ? 'Mobile' : 'Desktop');
+            console.log('User Agent:', navigator.userAgent);
             console.log('Leaflet loaded:', typeof L !== 'undefined');
-            console.log('FileSaver loaded:', typeof saveAs !== 'undefined');
+            console.log('FileSaver loaded:', typeof saveAs !== 'undefined', '(only required for desktop)');
             console.log('html-docx-js loaded:', typeof htmlDocx !== 'undefined');
 
-            if (typeof saveAs === 'undefined' || typeof htmlDocx === 'undefined') {
-                console.warn('⚠️ Word export libraries not loaded! Download feature may not work.');
+            if (typeof htmlDocx === 'undefined') {
+                console.warn('⚠️ html-docx-js not loaded! Word export will not work.');
+            }
+            if (!isMobile && typeof saveAs === 'undefined') {
+                console.warn('⚠️ FileSaver not loaded! Word export may not work on desktop.');
             }
         });
 
@@ -1363,7 +1369,9 @@
                     return;
                 }
 
-                if (typeof saveAs === 'undefined') {
+                // FileSaver is only required for desktop browsers
+                const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+                if (!isMobile && typeof saveAs === 'undefined') {
                     alert('❌ 檔案下載功能載入失敗\n\n無法載入 FileSaver 函式庫。\n\n可能原因：\n1. 網路連線問題\n2. 防火牆或廣告封鎖程式阻擋\n3. 瀏覽器安全設定\n\n請嘗試：\n• 重新整理頁面 (F5)\n• 暫時關閉廣告封鎖程式\n• 使用其他瀏覽器\n• 檢查網路連線');
                     console.error('FileSaver library not loaded');
                     return;
@@ -1599,8 +1607,32 @@
                 const converted = htmlDocx.asBlob(htmlContent);
                 const fileName = `${route.name.replace(/[^a-zA-Z0-9\u4e00-\u9fa5]/g, '_')}_${today.getFullYear()}${(today.getMonth()+1).toString().padStart(2,'0')}${today.getDate().toString().padStart(2,'0')}.docx`;
 
-                // Download
-                saveAs(converted, fileName);
+                // Detect if mobile device
+                const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+
+                // Download - use different methods for mobile and desktop
+                if (isMobile) {
+                    // Mobile-friendly download
+                    const url = URL.createObjectURL(converted);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = fileName;
+                    a.style.display = 'none';
+                    document.body.appendChild(a);
+                    a.click();
+
+                    // Clean up
+                    setTimeout(() => {
+                        document.body.removeChild(a);
+                        URL.revokeObjectURL(url);
+                    }, 100);
+
+                    // Show mobile-specific message
+                    alert('📱 檔案已準備下載\n\n請檢查您的下載資料夾或瀏覽器的下載通知。\n\n檔案名稱：' + fileName);
+                } else {
+                    // Desktop download using FileSaver
+                    saveAs(converted, fileName);
+                }
 
                 console.log('Word document generated:', fileName);
 
